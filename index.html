@@ -837,7 +837,7 @@
 
   <!-- Modal: 2FA Authentication Overlay & Setup (Locked by Default) -->
   <div class="auth-overlay-backdrop" id="auth-modal" aria-hidden="false" role="dialog">
-    <div class="auth-card" id="auth-login-card" style="display: none;">
+    <div class="auth-card" id="auth-login-card" style="display: block;">
       <div class="auth-header">
         <div class="auth-icon-shield">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -846,7 +846,7 @@
           </svg>
         </div>
         <h2>Accesso Protetto 2FA</h2>
-        <p class="auth-subtitle">Inserisci la tua Master Password e il codice generato dall'app Authenticator</p>
+        <p class="auth-subtitle">Inserisci la tua Master Password e il codice dall'app Authenticator</p>
       </div>
 
       <form id="auth-login-form" class="auth-form-body">
@@ -876,11 +876,17 @@
         <button type="submit" class="btn btn-primary btn-auth-submit" id="btn-submit-login">
           <span>🔒 Sblocca CardVault</span>
         </button>
+
+        <div style="text-align: center; margin-top: 0.75rem;">
+          <button type="button" id="btn-switch-to-setup" class="auth-switch-link">
+            ⚙️ Prima volta o vuoi riconfigurare l'Authenticator? Clicca qui
+          </button>
+        </div>
       </form>
     </div>
 
     <!-- 2FA First-Time Setup Card -->
-    <div class="auth-card" id="auth-setup-card" style="display: block; max-width: 500px;">
+    <div class="auth-card" id="auth-setup-card" style="display: none; max-width: 500px;">
       <div class="auth-header">
         <div class="auth-icon-shield setup">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -920,6 +926,12 @@
         <button type="submit" class="btn btn-primary btn-auth-submit" id="btn-submit-setup">
           <span>Attiva Protezione 2FA</span>
         </button>
+
+        <div style="text-align: center; margin-top: 0.75rem;">
+          <button type="button" id="btn-switch-to-login" class="auth-switch-link">
+            🔑 Hai già associato l'app Authenticator? Torna al Login
+          </button>
+        </div>
       </form>
     </div>
   </div>

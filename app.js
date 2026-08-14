@@ -2372,6 +2372,31 @@
       });
     }
 
+    // Switch to Setup View
+    const btnSwitchToSetup = document.getElementById("btn-switch-to-setup");
+    if (btnSwitchToSetup) {
+      btnSwitchToSetup.addEventListener("click", async () => {
+        const authLoginCard = document.getElementById("auth-login-card");
+        const authSetupCard = document.getElementById("auth-setup-card");
+        authLoginCard.style.display = "none";
+        authSetupCard.style.display = "block";
+        await load2FASetupData();
+      });
+    }
+
+    // Switch to Login View
+    const btnSwitchToLogin = document.getElementById("btn-switch-to-login");
+    if (btnSwitchToLogin) {
+      btnSwitchToLogin.addEventListener("click", () => {
+        const authLoginCard = document.getElementById("auth-login-card");
+        const authSetupCard = document.getElementById("auth-setup-card");
+        authSetupCard.style.display = "none";
+        authLoginCard.style.display = "block";
+        const pwdInput = document.getElementById("auth-input-password");
+        if (pwdInput) setTimeout(() => pwdInput.focus(), 150);
+      });
+    }
+
     // Lock Session Button
     if (btnLockSession) {
       btnLockSession.addEventListener("click", () => {
