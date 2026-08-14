@@ -1572,7 +1572,7 @@
     try {
       const response = await fetch("/api/cardtrader/sync-all", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ cards: cards })
       });
 
@@ -1649,7 +1649,7 @@
     try {
       const response = await fetch("/api/cardtrader/sync-single", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ card })
       });
 

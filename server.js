@@ -740,9 +740,9 @@ const server = http.createServer(async (req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log('====================================================');
-  console.log(`🚀 CardVault TCG Server attivo su: http://localhost:${PORT}`);
+  console.log(`🚀 CardVault TCG Server attivo su: http://0.0.0.0:${PORT}`);
   console.log(`📁 File CSV collegato: ${CSV_FILE_PATH}`);
   console.log(`⚡ CardTrader API: Connessa (Token Attivo)`);
   console.log(`🔐 Sicurezza 2FA: ${authConfig.enabled ? 'Attiva' : 'In attesa di configurazione iniziale'}`);
