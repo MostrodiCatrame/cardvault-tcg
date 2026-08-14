@@ -2382,10 +2382,15 @@
     }
   }
 
-  // Add 2FA initialization to DOM ready
-  document.addEventListener("DOMContentLoaded", () => {
+  function startApplication() {
     init();
     init2FAEvents();
     check2FAStatus();
-  });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", startApplication);
+  } else {
+    startApplication();
+  }
 })();
