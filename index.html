@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CardVault TCG • Yu-Gi-Oh! Portfolio, Market Monitor & Wants</title>
+  <meta name="description" content="Dashboard avanzata per il monitoraggio del portafoglio e lista wants di Yu-Gi-Oh!, con refresh bilanciato prezzi e sincronizzazione con file CSV.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header" id="main-header">
+      <div class="header-left">
+        <div class="logo-badge">
+          <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+          <span class="logo-text">CARDVAULT <span class="logo-highlight">TCG</span></span>
+        </div>
+        <div class="header-title-wrap">
+          <h1 id="app-heading">Yu-Gi-Oh! Market Monitor & Portfolio</h1>
+          <p class="header-subtitle">Monitoraggio valore bilanciato, analisi trend e sincronizzazione file CSV</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Refresh Button & Controls -->
+        <div class="refresh-controls-wrap">
+          <button type="button" class="btn btn-refresh" id="btn-refresh-prices" title="Ricalcola e aggiorna quotazioni di mercato e trend">
+            <svg class="btn-icon icon-spin" id="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+            </svg>
+            <span>Aggiorna Mercato</span>
+          </button>
+          
+          <div class="auto-refresh-box" title="Intervallo di auto-refresh prezzi">
+            <label for="auto-refresh-select">Auto:</label>
+            <select id="auto-refresh-select" class="auto-select">
+              <option value="off">Spento</option>
+              <option value="5">5 min</option>
+              <option value="15">15 min</option>
+              <option value="30">30 min</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-ct-sync" id="btn-sync-cardtrader" title="Interroga l'API ufficiale di CardTrader per sincronizzare tutti i prezzi reali e salvarli nel CSV">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <span id="btn-sync-ct-text">⚡ Sincronizza CardTrader (Live)</span>
+        </button>
+
+        <button type="button" class="btn btn-secondary" id="btn-save-disk" title="Salva modifiche direttamente sul file CSV">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+            <polyline points="7 3 7 8 15 8"></polyline>
+          </svg>
+          <span id="btn-save-disk-text">Salva su File CSV</span>
+        </button>
+
+        <button type="button" class="btn btn-secondary" id="btn-import-csv" title="Importa file CSV">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Importa CSV</span>
+        </button>
+        <input type="file" id="csv-file-input" accept=".csv" style="display: none;">
+
+        <button type="button" class="btn btn-secondary" id="btn-export-csv" title="Esporta dati in CSV">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <span>Esporta CSV</span>
+        </button>
+
+        <button type="button" class="btn btn-primary" id="btn-open-add-modal" title="Aggiungi una nuova carta">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span id="btn-add-text">Aggiungi Carta</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Sub-header Navigation Tabs & Status -->
+    <div class="nav-tabs-bar">
+      <div class="nav-tabs-list" role="tablist">
+        <button type="button" class="nav-tab-btn active" id="tab-portfolio" role="tab" aria-selected="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+          <span>Mio Portfolio (Possedute)</span>
+          <span class="tab-badge" id="tab-count-portfolio">29</span>
+        </button>
+
+        <button type="button" class="nav-tab-btn" id="tab-wants" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="6"></circle>
+            <circle cx="12" cy="12" r="2"></circle>
+          </svg>
+          <span>Lista Wants (Wishlist)</span>
+          <span class="tab-badge wants-badge" id="tab-count-wants">5</span>
+        </button>
+      </div>
+
+      <div class="sync-status-indicator" id="sync-status-badge">
+        <span class="sync-dot" id="sync-indicator-dot"></span>
+        <span id="sync-status-label">Controllo sincronizzazione...</span>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- SECTION 1: PORTFOLIO (CARTE POSSEDUTE)        -->
+    <!-- ============================================== -->
+    <div id="section-portfolio" class="view-section active">
+      <!-- Stats & KPI Bar Portfolio -->
+      <section class="kpi-grid" id="kpi-section" aria-label="Indicatori di performance del portafoglio">
+        <div class="kpi-card highlight-card">
+          <div class="kpi-label">Valore Stimato Portafoglio (Trend)</div>
+          <div class="kpi-value" id="kpi-total-trend">€ 0,00</div>
+          <div class="kpi-sub">Media Minima: <strong id="kpi-total-min">€ 0,00</strong></div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header-row">
+            <span class="kpi-label">Bacini di Monitoraggio</span>
+            <span class="kpi-tag">3 Mercati</span>
+          </div>
+          <div class="kpi-market-breakdown">
+            <div class="market-pill cm" title="Cardmarket Trend Totale">
+              <span class="mp-name">Cardmarket</span>
+              <span class="mp-val" id="kpi-cm-total">€ 0,00</span>
+            </div>
+            <div class="market-pill ct" title="CardTrader Trend Totale">
+              <span class="mp-name">CardTrader</span>
+              <span class="mp-val" id="kpi-ct-total">€ 0,00</span>
+            </div>
+            <div class="market-pill eb" title="eBay Trend Totale">
+              <span class="mp-name">eBay</span>
+              <span class="mp-val" id="kpi-eb-total">€ 0,00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header-row">
+            <span class="kpi-label">Barometro Trend</span>
+            <span class="kpi-tag" id="kpi-cards-count">0 Carte</span>
+          </div>
+          <div class="trend-bars-wrapper">
+            <div class="trend-stat-row">
+              <div class="trend-stat green">
+                <span class="trend-dot green"></span>
+                <span class="ts-label">In Rialzo ↗</span>
+                <strong id="kpi-trend-up">0</strong>
+              </div>
+              <div class="trend-stat neutral">
+                <span class="trend-dot neutral"></span>
+                <span class="ts-label">Stabili ↔</span>
+                <strong id="kpi-trend-stable">0</strong>
+              </div>
+              <div class="trend-stat red">
+                <span class="trend-dot red"></span>
+                <span class="ts-label">In Calo ↘</span>
+                <strong id="kpi-trend-down">0</strong>
+              </div>
+            </div>
+            <div class="trend-progress-track" id="kpi-trend-bar">
+              <div class="tp-seg tp-up" style="width: 50%;"></div>
+              <div class="tp-seg tp-stable" style="width: 30%;"></div>
+              <div class="tp-seg tp-down" style="width: 20%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-card top-grail-card">
+          <div class="kpi-label">Top Value Grail</div>
+          <div class="grail-title" id="kpi-top-card-name">-</div>
+          <div class="grail-meta" id="kpi-top-card-meta">-</div>
+          <div class="grail-price" id="kpi-top-card-val">€ 0,00</div>
+        </div>
+      </section>
+
+      <!-- Toolbar: Search, Filters & View Toggle (Portfolio) -->
+      <section class="toolbar-section" id="toolbar-portfolio">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="search-input" placeholder="Cerca per nome carta, codice (es. SOI-IT001), espansione o rarità..." autocomplete="off">
+          <button type="button" id="search-clear-btn" class="clear-btn" title="Cancella ricerca" style="display:none;">&times;</button>
+        </div>
+
+        <div class="filters-row">
+          <div class="filter-group">
+            <label for="filter-rarity">Rarità:</label>
+            <select id="filter-rarity" class="filter-select">
+              <option value="all">Tutte le Rarità</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filter-set">Espansione:</label>
+            <select id="filter-set" class="filter-select">
+              <option value="all">Tutti i Set</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filter-condition">Condizione:</label>
+            <select id="filter-condition" class="filter-select">
+              <option value="all">Tutte le Condizioni</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filter-trend">Trend Mercato:</label>
+            <select id="filter-trend" class="filter-select">
+              <option value="all">Tutti i Trend</option>
+              <option value="up">↗ In Rialzo / Bullish</option>
+              <option value="stable">↔ Stabile / Neutral</option>
+              <option value="down">↘ In Calo / Bearish</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="sort-by">Ordina per:</label>
+            <select id="sort-by" class="filter-select">
+              <option value="num-asc">N° File (Predefinito)</option>
+              <option value="price-desc">Prezzo Trend (Più Alto)</option>
+              <option value="price-asc">Prezzo Trend (Più Basso)</option>
+              <option value="min-desc">Prezzo Minimo (Più Alto)</option>
+              <option value="name-asc">Nome Carta (A - Z)</option>
+              <option value="trend-up">Trend (In rialzo prima)</option>
+              <option value="trend-down">Trend (In calo prima)</option>
+            </select>
+          </div>
+
+          <div class="view-toggles">
+            <button type="button" class="btn-toggle active" id="view-mode-table" title="Vista Tabella Dettagliata">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+            <button type="button" class="btn-toggle" id="view-mode-cards" title="Vista Schede Collezionista">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Main Content: Table View (Portfolio) -->
+      <main class="content-area" id="main-content">
+        <div class="table-container" id="table-view-container">
+          <table class="market-table" id="cards-table">
+            <thead>
+              <tr>
+                <th class="col-num">#</th>
+                <th class="col-card">Carta & Dettagli</th>
+                <th class="col-rarity">Rarità & Set</th>
+                <th class="col-cond">Cond. / Lingua</th>
+                <th class="col-market">Cardmarket</th>
+                <th class="col-market">CardTrader</th>
+                <th class="col-market col-ebay">eBay Monitor</th>
+                <th class="col-media">Media Globale</th>
+                <th class="col-trend">Trend</th>
+                <th class="col-actions">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="cards-table-body">
+              <!-- Dynamically rendered rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Grid Cards View (Portfolio) -->
+        <div class="cards-grid" id="cards-grid-container" style="display: none;">
+          <!-- Dynamically rendered card tiles -->
+        </div>
+
+        <!-- Empty State (Portfolio) -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="8" y1="12" x2="16" y2="12"></line>
+          </svg>
+          <h3>Nessuna carta trovata</h3>
+          <p>Nessun elemento corrisponde ai filtri selezionati o alla ricerca corrente.</p>
+          <button type="button" class="btn btn-secondary" id="btn-reset-filters">Ripristina Filtri</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- SECTION 2: WANTS (WISHLIST & CARTE CERCATE)   -->
+    <!-- ============================================== -->
+    <div id="section-wants" class="view-section" style="display: none;">
+      <!-- Stats & KPI Bar Wants -->
+      <section class="kpi-grid" id="kpi-wants-section" aria-label="Indicatori della Wishlist Wants">
+        <div class="kpi-card highlight-card">
+          <div class="kpi-label">Budget Desiderato Totale (Target)</div>
+          <div class="kpi-value" id="kpi-wants-target-total">€ 0,00</div>
+          <div class="kpi-sub">Miglior Prezzo di Mercato: <strong id="kpi-wants-best-total">€ 0,00</strong></div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header-row">
+            <span class="kpi-label">Bilancio Target vs Mercato</span>
+            <span class="kpi-tag" id="kpi-wants-count">0 Wants</span>
+          </div>
+          <div class="wants-diff-metric">
+            <span class="wdm-label">Delta Spesa Totale:</span>
+            <span class="wdm-value" id="kpi-wants-delta">€ 0,00</span>
+          </div>
+          <div class="wants-diff-sub" id="kpi-wants-delta-sub">Differenza rispetto al tuo budget prefissato</div>
+        </div>
+
+        <div class="kpi-card">
+          <div class="kpi-header-row">
+            <span class="kpi-label">Alert Opportunità di Acquisto</span>
+            <span class="kpi-tag">Deal Radar</span>
+          </div>
+          <div class="wants-deals-row">
+            <div class="deal-pill green" title="Carte attualmente al di sotto del prezzo target">
+              <span class="dp-count" id="kpi-wants-deals-count">0</span>
+              <span class="dp-label">Sotto Target ✅ (Affari)</span>
+            </div>
+            <div class="deal-pill amber" title="Carte con prezzo sopra il target desiderato">
+              <span class="dp-count" id="kpi-wants-over-count">0</span>
+              <span class="dp-label">Sopra Budget ⚠️</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-card top-grail-card">
+          <div class="kpi-label">Top Want Prioritario</div>
+          <div class="grail-title" id="kpi-top-want-name">-</div>
+          <div class="grail-meta" id="kpi-top-want-meta">-</div>
+          <div class="grail-price" id="kpi-top-want-val">€ 0,00</div>
+        </div>
+      </section>
+
+      <!-- Toolbar Wants -->
+      <section class="toolbar-section" id="toolbar-wants">
+        <div class="search-box">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="search-wants-input" placeholder="Cerca nella lista Wants per nome, codice o rarità..." autocomplete="off">
+          <button type="button" id="search-wants-clear-btn" class="clear-btn" title="Cancella ricerca" style="display:none;">&times;</button>
+        </div>
+
+        <div class="filters-row">
+          <div class="filter-group">
+            <label for="filter-wants-status">Stato Prezzo:</label>
+            <select id="filter-wants-status" class="filter-select">
+              <option value="all">Tutte le Carte Wants</option>
+              <option value="deal">✅ Sotto Target / Affare Trovato</option>
+              <option value="over">⚠️ Sopra Target Desiderato</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filter-wants-rarity">Rarità:</label>
+            <select id="filter-wants-rarity" class="filter-select">
+              <option value="all">Tutte le Rarità</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="sort-wants-by">Ordina per:</label>
+            <select id="sort-wants-by" class="filter-select">
+              <option value="target-desc">Prezzo Target (Più Alto)</option>
+              <option value="target-asc">Prezzo Target (Più Basso)</option>
+              <option value="best-price-asc">Miglior Prezzo Mercato (Più Economico)</option>
+              <option value="deal-saving">Maggior Risparmio (€ Sotto Target)</option>
+              <option value="name-asc">Nome Carta (A - Z)</option>
+            </select>
+          </div>
+
+          <div class="view-toggles">
+            <button type="button" class="btn-toggle active" id="view-mode-wants-table" title="Vista Tabella Wants">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+              </svg>
+            </button>
+            <button type="button" class="btn-toggle" id="view-mode-wants-cards" title="Vista Schede Wants">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Wants Content -->
+      <main class="content-area" id="wants-main-content">
+        <div class="table-container" id="wants-table-view-container">
+          <table class="market-table" id="wants-table">
+            <thead>
+              <tr>
+                <th class="col-num">#</th>
+                <th class="col-card">Carta Desiderata</th>
+                <th class="col-rarity">Rarità & Set</th>
+                <th class="col-cond">Condizione Cercata</th>
+                <th class="col-target">Prezzo Target</th>
+                <th class="col-market">Cardmarket</th>
+                <th class="col-market">CardTrader</th>
+                <th class="col-market col-ebay">eBay</th>
+                <th class="col-best">Miglior Offerta</th>
+                <th class="col-status">Status Budget</th>
+                <th class="col-actions">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="wants-table-body">
+              <!-- Dynamically rendered rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Wants Grid View -->
+        <div class="cards-grid" id="wants-grid-container" style="display: none;">
+          <!-- Dynamically rendered wants tiles -->
+        </div>
+
+        <!-- Empty State (Wants) -->
+        <div class="empty-state" id="wants-empty-state" style="display: none;">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="12" cy="12" r="6"></circle>
+            <circle cx="12" cy="12" r="2"></circle>
+          </svg>
+          <h3>Nessuna carta nella Lista Wants</h3>
+          <p>Aggiungi carte che desideri monitorare impostando il tuo prezzo target di acquisto.</p>
+          <button type="button" class="btn btn-primary" id="btn-add-first-want">+ Aggiungi Primo Want</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-left">
+        <span>CardVault TCG • Sincronizzato con <code>Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv</code></span>
+      </div>
+      <div class="footer-right">
+        <button type="button" class="footer-link-btn" id="btn-reset-baseline" style="margin-right: 14px;">Ripristina Valori Base</button>
+        <button type="button" class="footer-link-btn" id="btn-restore-default">Ripristina Archivio Originale CSV</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Modal: Add / Edit Card (Portfolio) -->
+  <div class="modal-backdrop" id="card-modal" style="display: none;" aria-hidden="true" role="dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modal-title">Aggiungi Nuova Carta nel Portfolio</h2>
+        <button type="button" class="modal-close-btn" id="btn-close-modal" aria-label="Chiudi modale">&times;</button>
+      </div>
+
+      <form id="card-form" class="modal-form">
+        <input type="hidden" id="form-card-id">
+
+        <div class="form-grid">
+          <!-- Colonna 1: Dati Base -->
+          <div class="form-section">
+            <h3 class="form-section-title">Informazioni Carta</h3>
+            
+            <div class="form-group">
+              <label for="form-name">Nome Carta *</label>
+              <input type="text" id="form-name" required placeholder="es. Uria, Signore delle Fiamme Impetuose">
+            </div>
+
+            <div class="form-group">
+              <label for="form-english-name">Nome Ufficiale Inglese (per ricerche perfette su Cardmarket & CardTrader)</label>
+              <input type="text" id="form-english-name" placeholder="es. Uria, Lord of Searing Flames">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="form-set">Espansione *</label>
+                <input type="text" id="form-set" required placeholder="es. Shadow of Infinity">
+              </div>
+              <div class="form-group flex-1">
+                <label for="form-code">Codice Carta *</label>
+                <input type="text" id="form-code" required placeholder="es. SOI-IT001">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="form-rarity">Rarità *</label>
+                <input type="text" id="form-rarity" list="rarity-datalist" required placeholder="es. Ultimate Rare">
+                <datalist id="rarity-datalist">
+                  <option value="Quarter Century Secret Rare">
+                  <option value="Ultimate Rare">
+                  <option value="Ghost Rare">
+                  <option value="Secret Rare">
+                  <option value="Prismatic Secret Rare">
+                  <option value="Platinum Secret Rare">
+                  <option value="Ultra Rare">
+                  <option value="Super Rare">
+                  <option value="Rare">
+                  <option value="Common">
+                  <option value="Collector's Rare">
+                  <option value="Starlight Rare">
+                </datalist>
+              </div>
+              <div class="form-group flex-1">
+                <label for="form-edition">Edizione / Artwork</label>
+                <input type="text" id="form-edition" placeholder="es. 1ª Edizione / Alternate Art">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="form-lang">Lingua *</label>
+                <select id="form-lang">
+                  <option value="Italiano (ITA)">Italiano (ITA)</option>
+                  <option value="Inglese (EN)">Inglese (EN)</option>
+                  <option value="Giapponese (JP)">Giapponese (JP)</option>
+                  <option value="Tedesco (DE)">Tedesco (DE)</option>
+                  <option value="Francese (FR)">Francese (FR)</option>
+                  <option value="Spagnolo (ES)">Spagnolo (ES)</option>
+                </select>
+              </div>
+              <div class="form-group flex-1">
+                <label for="form-condition">Condizione *</label>
+                <select id="form-condition">
+                  <option value="Near Mint">Near Mint (NM)</option>
+                  <option value="Excellent (EX)">Excellent (EX)</option>
+                  <option value="Good (GD)">Good (GD)</option>
+                  <option value="Light Played (LP)">Light Played (LP)</option>
+                  <option value="Played (PL)">Played (PL)</option>
+                  <option value="Poor (PO)">Poor (PO)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="form-notes">Note & Tag Collezionista</label>
+              <input type="text" id="form-notes" placeholder="es. Vintage Grail SOI Ultimate, Centratura ottima, ecc.">
+            </div>
+          </div>
+
+          <!-- Colonna 2: Mercati e Prezzi -->
+          <div class="form-section">
+            <h3 class="form-section-title">Valutazioni Bacini & Trend</h3>
+
+            <!-- Cardmarket -->
+            <div class="market-form-block cm-border">
+              <span class="mfb-tag cm-badge">Cardmarket</span>
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="form-cm-min">Minimo (€)</label>
+                  <input type="number" step="0.01" min="0" id="form-cm-min" placeholder="0.00">
+                </div>
+                <div class="form-group flex-1">
+                  <label for="form-cm-trend">Trend (€)</label>
+                  <input type="number" step="0.01" min="0" id="form-cm-trend" placeholder="0.00">
+                </div>
+              </div>
+            </div>
+
+            <!-- CardTrader -->
+            <div class="market-form-block ct-border">
+              <span class="mfb-tag ct-badge">CardTrader</span>
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="form-ct-min">Minimo (€)</label>
+                  <input type="number" step="0.01" min="0" id="form-ct-min" placeholder="0.00">
+                </div>
+                <div class="form-group flex-1">
+                  <label for="form-ct-trend">Trend (€)</label>
+                  <input type="number" step="0.01" min="0" id="form-ct-trend" placeholder="0.00">
+                </div>
+              </div>
+            </div>
+
+            <!-- eBay -->
+            <div class="market-form-block eb-border">
+              <span class="mfb-tag eb-badge">eBay Monitor</span>
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="form-eb-min">Prezzo Base / Min (€)</label>
+                  <input type="number" step="0.01" min="0" id="form-eb-min" placeholder="0.00">
+                </div>
+                <div class="form-group flex-1">
+                  <label for="form-eb-trend">Venduto Recente / Trend (€)</label>
+                  <input type="number" step="0.01" min="0" id="form-eb-trend" placeholder="0.00">
+                </div>
+              </div>
+            </div>
+
+            <!-- Trend Direction -->
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="form-trend-status">Stato Trend *</label>
+                <select id="form-trend-status">
+                  <option value="up">↗ In Crescita / Rialzo (Bullish)</option>
+                  <option value="stable" selected>↔ Stabile / Consolidamento</option>
+                  <option value="down">↘ In Calo / Ribasso (Bearish)</option>
+                </select>
+              </div>
+              <div class="form-group flex-1">
+                <label for="form-trend-pct">Variazione Trend (%)</label>
+                <input type="number" step="0.1" id="form-trend-pct" placeholder="es. +12.5 o -5.0">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-modal">Annulla</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-card">Salva Carta</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add / Edit Want Card -->
+  <div class="modal-backdrop" id="want-modal" style="display: none;" aria-hidden="true" role="dialog">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="want-modal-title">Aggiungi Carta alla Lista Wants</h2>
+        <button type="button" class="modal-close-btn" id="btn-close-want-modal" aria-label="Chiudi modale">&times;</button>
+      </div>
+
+      <form id="want-form" class="modal-form">
+        <input type="hidden" id="form-want-id">
+
+        <div class="form-grid">
+          <!-- Colonna 1: Dati Want -->
+          <div class="form-section">
+            <h3 class="form-section-title">Carta Desiderata</h3>
+            
+            <div class="form-group">
+              <label for="want-form-name">Nome Carta *</label>
+              <input type="text" id="want-form-name" required placeholder="es. Drago Bianco Occhi Blu">
+            </div>
+
+            <div class="form-group">
+              <label for="want-form-english-name">Nome Ufficiale Inglese (per ricerche perfette su Cardmarket & CardTrader)</label>
+              <input type="text" id="want-form-english-name" placeholder="es. Blue-Eyes White Dragon">
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="want-form-set">Espansione *</label>
+                <input type="text" id="want-form-set" required placeholder="es. Leggenda del Drago Bianco">
+              </div>
+              <div class="form-group flex-1">
+                <label for="want-form-code">Codice Carta *</label>
+                <input type="text" id="want-form-code" required placeholder="es. LOB-I001">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="want-form-rarity">Rarità *</label>
+                <input type="text" id="want-form-rarity" list="rarity-datalist" required placeholder="es. Ultra Rare">
+              </div>
+              <div class="form-group flex-1">
+                <label for="want-form-edition">Edizione Desiderata</label>
+                <input type="text" id="want-form-edition" placeholder="es. 1ª Edizione">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="want-form-lang">Lingua Preferita *</label>
+                <select id="want-form-lang">
+                  <option value="Italiano (ITA)">Italiano (ITA)</option>
+                  <option value="Inglese (EN)">Inglese (EN)</option>
+                  <option value="Giapponese (JP)">Giapponese (JP)</option>
+                  <option value="Tedesco (DE)">Tedesco (DE)</option>
+                  <option value="Francese (FR)">Francese (FR)</option>
+                  <option value="Spagnolo (ES)">Spagnolo (ES)</option>
+                </select>
+              </div>
+              <div class="form-group flex-1">
+                <label for="want-form-condition">Condizione Minima *</label>
+                <select id="want-form-condition">
+                  <option value="Near Mint">Near Mint (NM)</option>
+                  <option value="Excellent (EX)">Excellent (EX)</option>
+                  <option value="Good (GD)">Good (GD)</option>
+                  <option value="Light Played (LP)">Light Played (LP)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group target-budget-highlight">
+              <label for="want-form-target-price">🎯 Prezzo Target / Budget Massimo (€) *</label>
+              <input type="number" step="0.01" min="0" id="want-form-target-price" required placeholder="es. 350.00">
+              <small class="form-help">Ti avviseremo quando una quotazione sui mercati scende sotto questo valore!</small>
+            </div>
+
+            <div class="form-group">
+              <label for="want-form-notes">Note d'Acquisto</label>
+              <input type="text" id="want-form-notes" placeholder="es. Priorità alta per deck competitivo, cerca copia gradata...">
+            </div>
+          </div>
+
+          <!-- Colonna 2: Quotazioni Rilevate -->
+          <div class="form-section">
+            <h3 class="form-section-title">Quotazioni di Mercato Attuali</h3>
+
+            <!-- Cardmarket -->
+            <div class="market-form-block cm-border">
+              <span class="mfb-tag cm-badge">Cardmarket</span>
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="want-form-cm-min">Miglior Offerta (€)</label>
+                  <input type="number" step="0.01" min="0" id="want-form-cm-min" placeholder="0.00">
+                </div>
+                <div class="form-group flex-1">
+                  <label for="want-form-cm-trend">Trend (€)</label>
+                  <input type="number" step="0.01" min="0" id="want-form-cm-trend" placeholder="0.00">
+                </div>
+              </div>
+            </div>
+
+            <!-- CardTrader -->
+            <div class="market-form-block ct-border">
+              <span class="mfb-tag ct-badge">CardTrader</span>
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="want-form-ct-min">Miglior Offerta (€)</label>
+                  <input type="number" step="0.01" min="0" id="want-form-ct-min" placeholder="0.00">
+                </div>
+                <div class="form-group flex-1">
+                  <label for="want-form-ct-trend">Trend (€)</label>
+                  <input type="number" step="0.01" min="0" id="want-form-ct-trend" placeholder="0.00">
+                </div>
+              </div>
+            </div>
+
+            <!-- eBay -->
+            <div class="market-form-block eb-border">
+              <span class="mfb-tag eb-badge">eBay Monitor</span>
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="want-form-eb-min">Compralo Subito Min (€)</label>
+                  <input type="number" step="0.01" min="0" id="want-form-eb-min" placeholder="0.00">
+                </div>
+                <div class="form-group flex-1">
+                  <label for="want-form-eb-trend">Venduto Recente (€)</label>
+                  <input type="number" step="0.01" min="0" id="want-form-eb-trend" placeholder="0.00">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-want-modal">Annulla</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-want">Salva nei Wants</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: CardTrader Live Sync Progress & Results -->
+  <div class="modal-backdrop" id="ct-sync-modal" style="display: none;" aria-hidden="true" role="dialog">
+    <div class="modal-card" style="max-width: 680px;">
+      <div class="modal-header">
+        <h2 style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #ea580c;">⚡</span> Sincronizzazione Ufficiale CardTrader API
+        </h2>
+        <button type="button" class="modal-close-btn" id="btn-close-ct-modal" aria-label="Chiudi modale">&times;</button>
+      </div>
+
+      <div style="padding: 1.5rem;">
+        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+          Connessione diretta tramite token utente <strong>Fgavagnin</strong>. Vengono interrogate le inserzioni in tempo reale su <em>CardTrader Marketplace</em> per tutte le carte nel portfolio.
+        </p>
+
+        <div class="ct-sync-progress-wrap">
+          <div class="ct-progress-header">
+            <span id="ct-progress-status-text">Avvio sincronizzazione...</span>
+            <strong id="ct-progress-pct-text">0%</strong>
+          </div>
+          <div class="ct-progress-bar-bg">
+            <div class="ct-progress-bar-fill" id="ct-progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="ct-logs-container" id="ct-logs-box">
+          <!-- Live logs populate here -->
+        </div>
+
+        <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" id="btn-close-ct-done" style="display: none;">Chiudi e Torna al Portfolio</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="cards-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

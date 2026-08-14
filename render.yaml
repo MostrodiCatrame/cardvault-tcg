@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: cardvault-tcg
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.0.0
+      - key: CARDTRADER_TOKEN
+        sync: false
