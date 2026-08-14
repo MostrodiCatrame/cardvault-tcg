@@ -188,6 +188,21 @@
     lastUpdated = localStorage.getItem(STORAGE_KEY_LAST_UPDATE) || new Date().toLocaleString("it-IT");
   }
 
+  const STORAGE_KEY_AUTH_TOKEN = "cardvault_session_token_v2";
+
+  function getAuthToken() {
+    return localStorage.getItem(STORAGE_KEY_AUTH_TOKEN) || "";
+  }
+
+  function getAuthHeaders(extraHeaders = {}) {
+    const token = getAuthToken();
+    const headers = { "Content-Type": "application/json", ...extraHeaders };
+    if (token) {
+      headers["Authorization"] = "Bearer " + token;
+    }
+    return headers;
+  }
+
   function savePortfolioData() {
     localStorage.setItem(STORAGE_KEY_PORTFOLIO, JSON.stringify(cards));
   }
@@ -199,7 +214,7 @@
   // Check if Node server is running for direct CSV disk sync
   async function checkServerConnection() {
     try {
-      const res = await fetch("/api/status");
+      const res = await fetch("/api/status", { headers: getAuthHeaders() });
       if (res.ok) {
         isServerConnected = true;
         syncIndicatorDot.style.background = "#10b981";
@@ -224,7 +239,7 @@
       try {
         const res = await fetch("/api/save-portfolio", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ cards })
         });
         const data = await res.json();
@@ -2174,5 +2189,203 @@
       .replace(/'/g, "&#039;");
   }
 
-  document.addEventListener("DOMContentLoaded", init);
+  // ==========================================
+  // 2FA AUTHENTICATION CLIENT LOGIC
+  // ==========================================
+  let currentSetupSecret = "";
+
+  async function check2FAStatus() {
+    try {
+      const res = await fetch("/api/auth/status", { headers: getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const authModal = document.getElementById("auth-modal");
+      const authLoginCard = document.getElementById("auth-login-card");
+      const authSetupCard = document.getElementById("auth-setup-card");
+
+      if (!data.isSetup) {
+        // 2FA not configured yet -> Show Setup Screen
+        authModal.style.display = "flex";
+        authModal.setAttribute("aria-hidden", "false");
+        authLoginCard.style.display = "none";
+        authSetupCard.style.display = "block";
+        await load2FASetupData();
+      } else if (!data.isAuthenticated) {
+        // 2FA configured, but user needs to login -> Show Login Screen
+        authModal.style.display = "flex";
+        authModal.setAttribute("aria-hidden", "false");
+        authLoginCard.style.display = "block";
+        authSetupCard.style.display = "none";
+        const pwdInput = document.getElementById("auth-input-password");
+        if (pwdInput) setTimeout(() => pwdInput.focus(), 150);
+      } else {
+        // Authenticated!
+        authModal.style.display = "none";
+        authModal.setAttribute("aria-hidden", "true");
+      }
+    } catch (e) {
+      console.log("Auth check skipped in offline mode");
+    }
+  }
+
+  async function load2FASetupData() {
+    try {
+      const res = await fetch("/api/auth/setup-init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      if (data.success) {
+        currentSetupSecret = data.secret;
+        const qrImg = document.getElementById("auth-qr-image");
+        const manualSecret = document.getElementById("auth-manual-secret");
+
+        if (manualSecret) manualSecret.textContent = data.formattedSecret || data.secret;
+        if (qrImg) {
+          qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(data.otpAuthUrl)}`;
+        }
+      }
+    } catch (err) {
+      console.error("Errore inizializzazione setup 2FA:", err);
+    }
+  }
+
+  function init2FAEvents() {
+    const authLoginForm = document.getElementById("auth-login-form");
+    const authSetupForm = document.getElementById("auth-setup-form");
+    const btnTogglePwd = document.getElementById("btn-toggle-pwd");
+    const btnCopySecret = document.getElementById("btn-copy-secret");
+    const btnLockSession = document.getElementById("btn-lock-session");
+    const authErrorMsg = document.getElementById("auth-error-msg");
+    const setupErrorMsg = document.getElementById("setup-error-msg");
+
+    // Toggle Password Visibility
+    if (btnTogglePwd) {
+      btnTogglePwd.addEventListener("click", () => {
+        const pwdInput = document.getElementById("auth-input-password");
+        if (pwdInput.type === "password") {
+          pwdInput.type = "text";
+          btnTogglePwd.textContent = "🙈";
+        } else {
+          pwdInput.type = "password";
+          btnTogglePwd.textContent = "👁️";
+        }
+      });
+    }
+
+    // Copy Manual Secret
+    if (btnCopySecret) {
+      btnCopySecret.addEventListener("click", () => {
+        if (currentSetupSecret) {
+          navigator.clipboard.writeText(currentSetupSecret);
+          btnCopySecret.textContent = "Copiato!";
+          setTimeout(() => btnCopySecret.textContent = "Copia", 2000);
+        }
+      });
+    }
+
+    // Login Form Submit
+    if (authLoginForm) {
+      authLoginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const pwd = document.getElementById("auth-input-password").value;
+        const rawOtp = document.getElementById("auth-input-otp").value;
+        const otp = rawOtp.replace(/\s+/g, "");
+        const rememberMe = document.getElementById("auth-remember-me").checked;
+        const btnSubmit = document.getElementById("btn-submit-login");
+
+        authErrorMsg.style.display = "none";
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = "Verifica in corso...";
+
+        try {
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: pwd, otpCode: otp, rememberMe })
+          });
+
+          const data = await res.json();
+          if (data.success && data.token) {
+            localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, data.token);
+            document.getElementById("auth-modal").style.display = "none";
+            document.getElementById("auth-modal").setAttribute("aria-hidden", "true");
+            showToast("🔓 Accesso 2FA effettuato con successo!");
+            await checkServerConnection();
+            render();
+          } else {
+            throw new Error(data.error || "Password o Codice OTP non validi");
+          }
+        } catch (err) {
+          authErrorMsg.textContent = err.message;
+          authErrorMsg.style.display = "block";
+          document.getElementById("auth-input-otp").value = "";
+          document.getElementById("auth-input-otp").focus();
+        } finally {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = "<span>🔒 Sblocca CardVault</span>";
+        }
+      });
+    }
+
+    // Setup Form Submit
+    if (authSetupForm) {
+      authSetupForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const pwd = document.getElementById("setup-input-password").value;
+        const rawOtp = document.getElementById("setup-input-otp").value;
+        const otp = rawOtp.replace(/\s+/g, "");
+        const btnSubmit = document.getElementById("btn-submit-setup");
+
+        setupErrorMsg.style.display = "none";
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = "Attivazione in corso...";
+
+        try {
+          const res = await fetch("/api/auth/setup-complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ password: pwd, secret: currentSetupSecret, otpCode: otp })
+          });
+
+          const data = await res.json();
+          if (data.success && data.token) {
+            localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, data.token);
+            document.getElementById("auth-modal").style.display = "none";
+            document.getElementById("auth-modal").setAttribute("aria-hidden", "true");
+            showToast("🛡️ Protezione 2FA configurata ed attivata con successo!");
+            await checkServerConnection();
+            render();
+          } else {
+            throw new Error(data.error || "Codice OTP non valido");
+          }
+        } catch (err) {
+          setupErrorMsg.textContent = err.message;
+          setupErrorMsg.style.display = "block";
+          document.getElementById("setup-input-otp").value = "";
+          document.getElementById("setup-input-otp").focus();
+        } finally {
+          btnSubmit.disabled = false;
+          btnSubmit.innerHTML = "<span>Attiva Protezione 2FA</span>";
+        }
+      });
+    }
+
+    // Lock Session Button
+    if (btnLockSession) {
+      btnLockSession.addEventListener("click", () => {
+        localStorage.removeItem(STORAGE_KEY_AUTH_TOKEN);
+        showToast("🔒 Sessione bloccata");
+        check2FAStatus();
+      });
+    }
+  }
+
+  // Add 2FA initialization to DOM ready
+  document.addEventListener("DOMContentLoaded", () => {
+    init();
+    init2FAEvents();
+    check2FAStatus();
+  });
 })();

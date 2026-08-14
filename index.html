@@ -92,6 +92,14 @@
           </svg>
           <span id="btn-add-text">Aggiungi Carta</span>
         </button>
+
+        <button type="button" class="btn btn-secondary" id="btn-lock-session" title="Blocca sessione con 2FA">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <span>🔒 Blocca</span>
+        </button>
       </div>
     </header>
 
@@ -824,6 +832,95 @@
           <button type="button" class="btn btn-secondary" id="btn-close-ct-done" style="display: none;">Chiudi e Torna al Portfolio</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal: 2FA Authentication Overlay & Setup -->
+  <div class="auth-overlay-backdrop" id="auth-modal" style="display: none;" aria-hidden="true" role="dialog">
+    <div class="auth-card" id="auth-login-card">
+      <div class="auth-header">
+        <div class="auth-icon-shield">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <polyline points="9 12 11 14 15 10"></polyline>
+          </svg>
+        </div>
+        <h2>Accesso Protetto 2FA</h2>
+        <p class="auth-subtitle">Inserisci la tua Master Password e il codice generato dall'app Authenticator</p>
+      </div>
+
+      <form id="auth-login-form" class="auth-form-body">
+        <div class="auth-form-group">
+          <label for="auth-input-password">Master Password</label>
+          <div class="auth-input-wrap">
+            <input type="password" id="auth-input-password" placeholder="La tua password segreta" required autocomplete="current-password">
+            <button type="button" class="auth-toggle-pwd" id="btn-toggle-pwd" aria-label="Mostra/Nascondi password">👁️</button>
+          </div>
+        </div>
+
+        <div class="auth-form-group">
+          <label for="auth-input-otp">Codice OTP a 6 Cifre</label>
+          <input type="text" id="auth-input-otp" class="auth-otp-input" placeholder="123 456" maxlength="7" pattern="[0-9 ]*" inputmode="numeric" required autocomplete="one-time-code">
+          <span class="auth-input-hint">Da Google Authenticator, Microsoft Authenticator o Apple</span>
+        </div>
+
+        <div class="auth-checkbox-row">
+          <label class="auth-checkbox-label">
+            <input type="checkbox" id="auth-remember-me" checked>
+            <span>Ricorda questo dispositivo (30 giorni)</span>
+          </label>
+        </div>
+
+        <div id="auth-error-msg" class="auth-error-alert" style="display: none;"></div>
+
+        <button type="submit" class="btn btn-primary btn-auth-submit" id="btn-submit-login">
+          <span>🔒 Sblocca CardVault</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- 2FA First-Time Setup Card -->
+    <div class="auth-card" id="auth-setup-card" style="display: none; max-width: 500px;">
+      <div class="auth-header">
+        <div class="auth-icon-shield setup">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </div>
+        <h2>Configura Accesso 2FA</h2>
+        <p class="auth-subtitle">Proteggi la tua collezione con Password e Google/Microsoft Authenticator</p>
+      </div>
+
+      <form id="auth-setup-form" class="auth-form-body">
+        <div class="auth-form-group">
+          <label for="setup-input-password">1. Scegli la tua Master Password</label>
+          <input type="password" id="setup-input-password" placeholder="Minimo 4 caratteri" required minlength="4">
+        </div>
+
+        <div class="auth-qr-section">
+          <label>2. Scansiona il QR Code con l'App Authenticator</label>
+          <div class="auth-qr-frame">
+            <img id="auth-qr-image" src="" alt="QR Code 2FA" width="170" height="170">
+          </div>
+          <div class="auth-manual-key-box">
+            <span class="amk-label">Oppure inserisci la chiave manuale:</span>
+            <code id="auth-manual-secret">---</code>
+            <button type="button" class="btn-copy-secret" id="btn-copy-secret" title="Copia chiave segreta">Copia</button>
+          </div>
+        </div>
+
+        <div class="auth-form-group">
+          <label for="setup-input-otp">3. Inserisci il codice a 6 cifre per confermare</label>
+          <input type="text" id="setup-input-otp" class="auth-otp-input" placeholder="000 000" maxlength="7" pattern="[0-9 ]*" inputmode="numeric" required>
+        </div>
+
+        <div id="setup-error-msg" class="auth-error-alert" style="display: none;"></div>
+
+        <button type="submit" class="btn btn-primary btn-auth-submit" id="btn-submit-setup">
+          <span>Attiva Protezione 2FA</span>
+        </button>
+      </form>
     </div>
   </div>
 

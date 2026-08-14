@@ -1,11 +1,11 @@
-// Local Sync Server for CardVault TCG
-// Permette la sincronizzazione bidirezionale in tempo reale con Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv
-// Include l'integrazione ufficiale CardTrader API v2 per il calcolo automatico dei prezzi reali!
+// Local & Cloud Server for CardVault TCG
+// Include Sincronizzazione CSV, CardTrader API v2 e Sicurezza 2FA (Password + TOTP Google/Microsoft Authenticator)
 
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const ROOT_DIR = __dirname;
@@ -17,10 +17,10 @@ const CSV_FILE_PATH = (process.platform === 'win32' && fs.existsSync('C:\\Users\
   : path.join(ROOT_DIR, 'Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv');
 
 const TOKEN_FILE_PATH = path.join(ROOT_DIR, '.cardtrader_token');
+const AUTH_CONFIG_FILE = path.join(ROOT_DIR, '.auth_config.json');
 
 // Default initial user token (or from process.env)
 let CARDTRADER_TOKEN = process.env.CARDTRADER_TOKEN || 'eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJjYXJkdHJhZGVyLXByb2R1Y3Rpb24iLCJzdWIiOiJhcHA6OTkwMSIsImF1ZCI6ImFwcDo5OTAxIiwiZXhwIjo0OTQyNDE1NzcyLCJqdGkiOiI2NTM3OTkwNy1iY2RiLTRiZGEtODI2NS02NDExNTcyYzU1OTUiLCJpYXQiOjE3ODY3Mzg1NzIsIm5hbWUiOiJGZ2F2YWduaW4gQXBwIDIwMjQwNDEyMTIxNjExIn0.YcmBv-42ry0rMXzB1ZpqDMfLnSqY4MLcnCJox4jk9DM1-25S-miR_SArKoyIpR0G7Jg4RSfbK0GQKPPLLAOd2n6n34zUZ9qBuXg6yUOKr7vMLCYKh6N7R7e5wtRAvtVKf8V3oj5zeCQ2HfeBfF_fZTgqJzhbN1dCjUA7CRpaWMdHuYe6I1UMfizjLSjVvzWsKVq21i07hzsidfYCvrT8U7pqH2SJzxiumJqUhsYNBkWWItGj9Dec-fC03_LBWI1qfQ5b1lXOA8DXvAERzE06e-eJDS8ywwRWIBGc-VZ-Dhdty6jcG-b3GAGh8P-082ue5tga31RT-tg-aQqcjT9EzA';
-
 
 // Load saved token if exists
 if (fs.existsSync(TOKEN_FILE_PATH)) {
@@ -28,6 +28,120 @@ if (fs.existsSync(TOKEN_FILE_PATH)) {
     const saved = fs.readFileSync(TOKEN_FILE_PATH, 'utf-8').trim();
     if (saved) CARDTRADER_TOKEN = saved;
   } catch (e) {}
+}
+
+// ==========================================
+// 2FA AUTHENTICATION SYSTEM (RFC 6238 TOTP)
+// ==========================================
+const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+function base32Decode(base32) {
+  let cleaned = base32.toUpperCase().replace(/=+$/, '').replace(/\s+/g, '');
+  let bits = '';
+  for (let i = 0; i < cleaned.length; i++) {
+    let val = BASE32_CHARS.indexOf(cleaned.charAt(i));
+    if (val === -1) continue;
+    bits += val.toString(2).padStart(5, '0');
+  }
+  let bytes = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) {
+    bytes.push(parseInt(bits.substr(i, 8), 2));
+  }
+  return Buffer.from(bytes);
+}
+
+function generateSecret(length = 20) {
+  const bytes = crypto.randomBytes(length);
+  let base32 = '';
+  for (let i = 0; i < bytes.length; i++) {
+    base32 += BASE32_CHARS.charAt(bytes[i] % 32);
+  }
+  return base32;
+}
+
+function verifyTOTP(secret, userCode, window = 1) {
+  if (!secret || !userCode) return false;
+  const epoch = Math.floor(Date.now() / 1000);
+  const currentTime = Math.floor(epoch / 30);
+  const key = base32Decode(secret);
+  const codeStr = (userCode || '').trim();
+
+  for (let errorWindow = -window; errorWindow <= window; errorWindow++) {
+    const time = currentTime + errorWindow;
+    const buf = Buffer.alloc(8);
+    buf.writeBigUInt64BE(BigInt(time));
+    const hmac = crypto.createHmac('sha1', key).update(buf).digest();
+    const offset = hmac[hmac.length - 1] & 0xf;
+    const code = ((hmac[offset] & 0x7f) << 24 | (hmac[offset + 1] & 0xff) << 16 | (hmac[offset + 2] & 0xff) << 8 | (hmac[offset + 3] & 0xff)) % 1000000;
+    const genCode = code.toString().padStart(6, '0');
+    if (genCode === codeStr) return true;
+  }
+  return false;
+}
+
+function hashPassword(password, salt) {
+  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+}
+
+let authConfig = {
+  enabled: false,
+  passwordHash: null,
+  salt: null,
+  totpSecret: null,
+  sessionSecret: crypto.randomBytes(32).toString('hex')
+};
+
+function loadAuthConfig() {
+  if (fs.existsSync(AUTH_CONFIG_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(AUTH_CONFIG_FILE, 'utf-8'));
+      if (data && data.enabled) {
+        authConfig = { ...authConfig, ...data };
+      }
+    } catch (e) {}
+  }
+}
+loadAuthConfig();
+
+function saveAuthConfig() {
+  try {
+    fs.writeFileSync(AUTH_CONFIG_FILE, JSON.stringify(authConfig, null, 2), 'utf-8');
+  } catch (e) {}
+}
+
+function createSessionToken(userId = 'admin', rememberDays = 30) {
+  const expiresAt = Date.now() + (rememberDays * 24 * 60 * 60 * 1000);
+  const payload = `${userId}:${expiresAt}`;
+  const signature = crypto.createHmac('sha256', authConfig.sessionSecret).update(payload).digest('hex');
+  return Buffer.from(`${payload}:${signature}`).toString('base64');
+}
+
+function verifySessionToken(token) {
+  if (!authConfig.enabled) return true; // Auth disabled, open access
+  if (!token) return false;
+
+  try {
+    const raw = Buffer.from(token, 'base64').toString('utf-8');
+    const parts = raw.split(':');
+    if (parts.length !== 3) return false;
+    const [userId, expiresAtStr, signature] = parts;
+    const expiresAt = parseInt(expiresAtStr);
+
+    if (isNaN(expiresAt) || Date.now() > expiresAt) return false;
+
+    const expectedSig = crypto.createHmac('sha256', authConfig.sessionSecret).update(`${userId}:${expiresAt}`).digest('hex');
+    return signature === expectedSig;
+  } catch (e) {
+    return false;
+  }
+}
+
+function getBearerToken(req) {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.substring(7).trim();
+  }
+  return null;
 }
 
 // Memory caches for CardTrader API
@@ -108,7 +222,7 @@ async function getExpansionBlueprints(expansionId) {
       const list = await fetchCardTrader(`/api/v2/blueprints?expansion_id=${expansionId}&page=${page}`);
       if (!list || !Array.isArray(list) || list.length === 0) break;
       allBlueprints = allBlueprints.concat(list);
-      if (list.length < 50) break; // Last page reached
+      if (list.length < 50) break;
     } catch (err) {
       break;
     }
@@ -125,7 +239,6 @@ async function fetchCardTraderPrice(card) {
   const cardCleanName = cleanStr(card.englishName || card.name);
   const cleanExpName = cleanStr(card.expansion);
 
-  // 1. Find matching expansion
   let exp = expansions.find(e => e.code.toLowerCase() === codePrefix);
   if (!exp) {
     exp = expansions.find(e => cleanStr(e.name) === cleanExpName);
@@ -138,13 +251,11 @@ async function fetchCardTraderPrice(card) {
     return { success: false, reason: `Espansione non trovata per codice ${card.code}` };
   }
 
-  // 2. Fetch blueprints for expansion
   const blueprints = await getExpansionBlueprints(exp.id);
   if (!blueprints || blueprints.length === 0) {
     return { success: false, reason: `Nessuna carta trovata nell'espansione ${exp.name}` };
   }
 
-  // 3. Find matching blueprint by English name and rarity
   const targetRarity = cleanStr(card.rarity);
   let matchedBp = blueprints.find(b => cleanStr(b.name) === cardCleanName && cleanStr(b.version) === targetRarity);
   
@@ -162,7 +273,6 @@ async function fetchCardTraderPrice(card) {
     return { success: false, reason: `Blueprint "${card.englishName || card.name}" non trovato in ${exp.name}` };
   }
 
-  // 4. Fetch live marketplace products
   const productsMap = await fetchCardTrader(`/api/v2/marketplace/products?blueprint_id=${matchedBp.id}`);
   const items = (productsMap && productsMap[matchedBp.id]) || [];
 
@@ -179,7 +289,6 @@ async function fetchCardTraderPrice(card) {
     };
   }
 
-  // Extract all valid Euro prices
   const prices = items
     .map(i => i.price_cents ? (i.price_cents / 100) : (i.price ? (i.price.cents / 100) : 0))
     .filter(p => p > 0);
@@ -191,7 +300,6 @@ async function fetchCardTraderPrice(card) {
   prices.sort((a, b) => a - b);
   const minPrice = prices[0];
 
-  // Calculate market trend (median of the lowest 5 offers or trimmed average)
   const sampleSize = Math.max(1, Math.min(5, prices.length));
   const sample = prices.slice(0, sampleSize);
   const trendPrice = sample.reduce((a, b) => a + b, 0) / sample.length;
@@ -297,6 +405,122 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ==========================================
+  // AUTHENTICATION API ROUTES (2FA)
+  // ==========================================
+  if (req.url === '/api/auth/status' && req.method === 'GET') {
+    const token = getBearerToken(req);
+    const isValid = verifySessionToken(token);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      isSetup: authConfig.enabled,
+      isAuthenticated: isValid
+    }));
+    return;
+  }
+
+  // Init 2FA Setup: Generate secret and OTPAuth URL
+  if (req.url === '/api/auth/setup-init' && req.method === 'POST') {
+    const secret = generateSecret(20);
+    const otpAuthUrl = `otpauth://totp/CardVault:Fgavagnin?secret=${secret}&issuer=CardVault`;
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: true,
+      secret: secret,
+      otpAuthUrl: otpAuthUrl,
+      formattedSecret: secret.match(/.{1,4}/g).join(' ')
+    }));
+    return;
+  }
+
+  // Complete 2FA Setup: Validate first OTP & save password
+  if (req.url === '/api/auth/setup-complete' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { password, secret, otpCode } = JSON.parse(body);
+        if (!password || password.length < 4) {
+          throw new Error("La password deve contenere almeno 4 caratteri");
+        }
+        if (!secret || !verifyTOTP(secret, otpCode)) {
+          throw new Error("Codice OTP non valido o scaduto. Inserisci il codice a 6 cifre visualizzato sulla tua app");
+        }
+
+        const salt = crypto.randomBytes(16).toString('hex');
+        const passwordHash = hashPassword(password, salt);
+
+        authConfig.enabled = true;
+        authConfig.passwordHash = passwordHash;
+        authConfig.salt = salt;
+        authConfig.totpSecret = secret;
+        authConfig.sessionSecret = crypto.randomBytes(32).toString('hex');
+
+        saveAuthConfig();
+
+        const token = createSessionToken('admin', 30);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, token: token, message: "2FA attivata con successo!" }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // Login: Check Master Password + 6-digit TOTP Code
+  if (req.url === '/api/auth/login' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { password, otpCode, rememberMe } = JSON.parse(body);
+        if (!authConfig.enabled) {
+          // If not configured, allow access and create token
+          const token = createSessionToken('admin', 30);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, token: token }));
+          return;
+        }
+
+        const calculatedHash = hashPassword(password || '', authConfig.salt);
+        if (calculatedHash !== authConfig.passwordHash) {
+          throw new Error("Password non corretta");
+        }
+
+        if (!verifyTOTP(authConfig.totpSecret, otpCode)) {
+          throw new Error("Codice OTP a 6 cifre non valido o scaduto");
+        }
+
+        const days = rememberMe ? 30 : 1;
+        const token = createSessionToken('admin', days);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, token: token }));
+      } catch (err) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // ==========================================
+  // AUTH MIDDLEWARE FOR SENSITIVE API ENDPOINTS
+  // ==========================================
+  const isProtectedApi = req.url.startsWith('/api/save') ||
+                         req.url.startsWith('/api/load') ||
+                         req.url.startsWith('/api/cardtrader');
+
+  if (isProtectedApi && authConfig.enabled) {
+    const token = getBearerToken(req);
+    if (!verifySessionToken(token)) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: "Accesso non autorizzato. Effettua il login 2FA." }));
+      return;
+    }
+  }
+
   // API: Status Check
   if (req.url === '/api/status' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -304,6 +528,7 @@ const server = http.createServer(async (req, res) => {
       status: 'ok',
       csvPath: CSV_FILE_PATH,
       cardTraderConnected: !!CARDTRADER_TOKEN,
+      twoFactorEnabled: authConfig.enabled,
       timestamp: new Date().toISOString()
     }));
     return;
@@ -433,11 +658,9 @@ const server = http.createServer(async (req, res) => {
           }
 
           updatedCards.push(card);
-          // Small delay to respect rate limit smoothly
-          await new Promise(r => setTimeout(r, 120));
+          await new Promise(r => setTimeout(r, 100));
         }
 
-        // Save updated cards directly to CSV on disk
         const csvContent = convertCardsToCsv(updatedCards);
         fs.writeFileSync(CSV_FILE_PATH, csvContent, 'utf-8');
         console.log(`[CardTrader Live Sync] Completato con successo! File CSV aggiornato.`);
@@ -522,5 +745,6 @@ server.listen(PORT, () => {
   console.log(`🚀 CardVault TCG Server attivo su: http://localhost:${PORT}`);
   console.log(`📁 File CSV collegato: ${CSV_FILE_PATH}`);
   console.log(`⚡ CardTrader API: Connessa (Token Attivo)`);
+  console.log(`🔐 Sicurezza 2FA: ${authConfig.enabled ? 'Attiva' : 'In attesa di configurazione iniziale'}`);
   console.log('====================================================');
 });
