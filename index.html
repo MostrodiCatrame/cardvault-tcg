@@ -835,9 +835,9 @@
     </div>
   </div>
 
-  <!-- Modal: 2FA Authentication Overlay & Setup -->
-  <div class="auth-overlay-backdrop" id="auth-modal" style="display: none;" aria-hidden="true" role="dialog">
-    <div class="auth-card" id="auth-login-card">
+  <!-- Modal: 2FA Authentication Overlay & Setup (Locked by Default) -->
+  <div class="auth-overlay-backdrop" id="auth-modal" aria-hidden="false" role="dialog">
+    <div class="auth-card" id="auth-login-card" style="display: none;">
       <div class="auth-header">
         <div class="auth-icon-shield">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -880,7 +880,7 @@
     </div>
 
     <!-- 2FA First-Time Setup Card -->
-    <div class="auth-card" id="auth-setup-card" style="display: none; max-width: 500px;">
+    <div class="auth-card" id="auth-setup-card" style="display: block; max-width: 500px;">
       <div class="auth-header">
         <div class="auth-icon-shield setup">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
