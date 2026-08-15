@@ -1714,6 +1714,227 @@
   // ==========================================
   // CARDTRADER LIVE API SYNC LOGIC
   // ==========================================
+  
+  // ==========================================
+  // MULTI-MARKETPLACE & HD ARTWORK ENGINE
+  // ==========================================
+  async function startMarketplacesSyncAll() {
+    if (!mpSyncModal) return;
+    mpSyncModal.style.display = "flex";
+    mpSyncModal.setAttribute("aria-hidden", "false");
+    if (btnCloseMpDone) btnCloseMpDone.style.display = "none";
+    if (mpLogsBox) mpLogsBox.innerHTML = "";
+    if (mpProgressFill) mpProgressFill.style.width = "15%";
+    if (mpProgressPctText) mpProgressPctText.textContent = "15%";
+    if (mpProgressStatusText) mpProgressStatusText.textContent = `Interrogazione YGOPRODeck & Mercati per ${cards.length} carte...`;
+
+    try {
+      const response = await fetch("/api/marketplaces/sync-all", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ cards: cards, wants: wants })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Errore Server HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || "Sincronizzazione non riuscita");
+      }
+
+      if (mpProgressFill) mpProgressFill.style.width = "100%";
+      if (mpProgressPctText) mpProgressPctText.textContent = "100%";
+      if (mpProgressStatusText) mpProgressStatusText.textContent = `✅ Sincronizzazione completata! ${result.cards.length} carte arricchite con immagini e quotazioni.`;
+      if (btnCloseMpDone) btnCloseMpDone.style.display = "inline-flex";
+
+      // Render logs
+      if (mpLogsBox && Array.isArray(result.logs)) {
+        mpLogsBox.innerHTML = result.logs.map(log => {
+          if (log.error) {
+            return `
+              <div class="ct-log-row error">
+                <span class="ct-log-name">${escapeHtml(log.cardName)} (${escapeHtml(log.code)})</span>
+                <span class="ct-log-diff" style="color: var(--trend-down);">Errore: ${escapeHtml(log.error)}</span>
+              </div>`;
+          }
+          const sources = (log.sources || []).join(" • ") || "Dati aggiornati";
+          return `
+            <div class="ct-log-row ok">
+              <span class="ct-log-name">${escapeHtml(log.cardName)} (${escapeHtml(log.code)})</span>
+              <span class="ct-log-diff" style="color: #38bdf8;">${escapeHtml(sources)}</span>
+            </div>`;
+        }).join("");
+      }
+
+      // Update state
+      cards = result.cards;
+      savePortfolioData();
+      populateFilterDropdowns();
+      render();
+      showToast(`🎉 ${result.cards.length} carte sincronizzate con successo con YGOPRODeck e Mercati!`);
+    } catch(err) {
+      if (mpProgressStatusText) mpProgressStatusText.textContent = `❌ Errore: ${err.message}`;
+      if (mpLogsBox) {
+        mpLogsBox.innerHTML = `<div class="ct-log-row error"><span class="ct-log-name">Errore durante la sincronizzazione: ${escapeHtml(err.message)}</span></div>`;
+      }
+      if (btnCloseMpDone) btnCloseMpDone.style.display = "inline-flex";
+    }
+  }
+
+  async function syncSingleMarketplaces(id) {
+    const card = cards.find(c => c.id === id);
+    if (!card) return;
+
+    showToast(`🌐 Sincronizzazione "${card.name}" con YGOPRODeck & Mercati...`);
+    try {
+      const response = await fetch("/api/marketplaces/sync-single", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ card: card })
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error || "Impossibile aggiornare");
+
+      const idx = cards.findIndex(c => c.id === id);
+      if (idx !== -1) {
+        cards[idx] = result.card;
+        savePortfolioData();
+        await syncPortfolioWithDiskCsv(true);
+        render();
+        showToast(`✅ "${card.name}" aggiornata con successo!`);
+      }
+    } catch(err) {
+      console.error("Errore sync carta:", err);
+      showToast(`❌ Errore sincronizzazione: ${err.message}`, "error");
+    }
+  }
+
+  // ==========================================
+  // CARD DETAIL LIGHTBOX
+  // ==========================================
+  function openCardLightbox(cardId) {
+    const card = cards.find(c => c.id === cardId) || wants.find(w => w.id === cardId);
+    if (!card || !cardLightboxModal) return;
+
+    if (lightboxImg) {
+      lightboxImg.src = card.imageUrlLarge || card.imageUrl || "https://images.ygoprodeck.com/images/cards/placeholder.jpg";
+      lightboxImg.alt = card.name;
+    }
+    if (lightboxName) lightboxName.textContent = card.name;
+    if (lightboxSub) {
+      lightboxSub.innerHTML = `${escapeHtml(card.code || '')} • ${escapeHtml(card.expansion || '')} • ${getLanguageFlag(card.language)} ${escapeHtml(card.language || '')}`;
+    }
+    if (lightboxTags) {
+      lightboxTags.innerHTML = `
+        <span class="badge-rarity ${getRarityClass(card.rarity)}">${escapeHtml(card.rarity)}</span>
+        <span class="badge-condition ${getConditionClass(card.condition || card.targetCondition)}">${escapeHtml(card.condition || card.targetCondition || 'Near Mint')}</span>
+        ${card.cardType ? `<span class="badge-cardtype">${escapeHtml(card.cardType)}</span>` : ''}
+        ${card.archetype ? `<span class="badge-condition" style="color:var(--accent-gold);">Archetipo: ${escapeHtml(card.archetype)}</span>` : ''}
+      `;
+    }
+    if (lightboxDesc) {
+      lightboxDesc.textContent = card.desc || "Dettagli effetto disponibili sincronizzando la carta con il database YGOPRODeck.";
+    }
+
+    if (lightboxPricesGrid) {
+      lightboxPricesGrid.innerHTML = `
+        <div class="lpg-item">
+          <div class="lpg-name">Cardmarket Trend</div>
+          <div class="lpg-val" style="color: #38bdf8;">${formatEuro(card.cmTrend)}</div>
+        </div>
+        <div class="lpg-item">
+          <div class="lpg-name">CardTrader Trend</div>
+          <div class="lpg-val" style="color: #fb923c;">${formatEuro(card.ctTrend)}</div>
+        </div>
+        <div class="lpg-item">
+          <div class="lpg-name">eBay Monitor</div>
+          <div class="lpg-val" style="color: var(--eb-gold);">${formatEuro(card.ebTrend)}</div>
+        </div>
+      `;
+    }
+
+    if (lightboxLinksRow) {
+      const itaName = card.name;
+      const cmUrl = `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(itaName)}`;
+      const ctUrl = `https://www.cardtrader.com/it/search?query=${encodeURIComponent(itaName)}`;
+      const ebUrl = `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + itaName + ' ' + (card.code || ''))}`;
+      lightboxLinksRow.innerHTML = `
+        <a href="${cmUrl}" target="_blank" class="btn btn-secondary" style="flex:1; font-size:0.8rem;">Vedi su Cardmarket</a>
+        <a href="${ctUrl}" target="_blank" class="btn btn-secondary" style="flex:1; font-size:0.8rem;">Vedi su CardTrader</a>
+        <a href="${ebUrl}" target="_blank" class="btn btn-secondary" style="flex:1; font-size:0.8rem;">Vedi su eBay</a>
+      `;
+    }
+
+    cardLightboxModal.style.display = "flex";
+    cardLightboxModal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeCardLightbox() {
+    if (cardLightboxModal) {
+      cardLightboxModal.style.display = "none";
+      cardLightboxModal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  // ==========================================
+  // API CONFIGURATION MODAL
+  // ==========================================
+  async function openApiConfigModal() {
+    if (!apiConfigModal) return;
+    try {
+      const res = await fetch("/api/config/providers", { headers: getAuthHeaders() });
+      if (res.ok) {
+        const config = await res.json();
+        if (inputCardtraderToken && config.cardTrader && config.cardTrader.tokenMasked) {
+          inputCardtraderToken.placeholder = `Attivo: ${config.cardTrader.tokenMasked}`;
+        }
+        if (inputJusttcgKey && config.justTcg && config.justTcg.keyMasked) {
+          inputJusttcgKey.placeholder = `Attivo: ${config.justTcg.keyMasked}`;
+        }
+      }
+    } catch(e) {}
+
+    apiConfigModal.style.display = "flex";
+    apiConfigModal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeApiConfigModal() {
+    if (apiConfigModal) {
+      apiConfigModal.style.display = "none";
+      apiConfigModal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  async function saveApiConfig() {
+    const cardTraderToken = inputCardtraderToken ? inputCardtraderToken.value.trim() : "";
+    const justTcgKey = inputJusttcgKey ? inputJusttcgKey.value.trim() : "";
+
+    const payload = {};
+    if (cardTraderToken) payload.cardTraderToken = cardTraderToken;
+    if (justTcgKey) payload.justTcgKey = justTcgKey;
+
+    try {
+      const res = await fetch("/api/config/providers", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("✅ Impostazioni API salvate con successo!");
+        closeApiConfigModal();
+      } else {
+        alert("Errore salvataggio: " + (data.error || "Impossibile salvare"));
+      }
+    } catch(err) {
+      alert("Errore di rete: " + err.message);
+    }
+  }
+
   async function startCardTraderSyncAll() {
     const ctSyncModal = document.getElementById("ct-sync-modal");
     const btnCloseCtDone = document.getElementById("btn-close-ct-done");
