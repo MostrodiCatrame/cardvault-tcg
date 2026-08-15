@@ -245,6 +245,29 @@ async function getExpansionBlueprints(expansionId) {
 
 // Find live CardTrader price for a single card
 async function fetchCardTraderPrice(card) {
+  // Ultra-fast exact lookup if blueprintId is available
+  if (card.blueprintId) {
+    try {
+      const mkt = await fetchCardTrader('/api/v2/marketplace/products?blueprint_id=' + card.blueprintId);
+      if (mkt) {
+        const prods = Array.isArray(mkt) ? mkt : Object.values(mkt).flat();
+        const prices = prods.map(p => p.price_cents ? p.price_cents / 100 : (p.price ? p.price.cents / 100 : 0)).filter(p => p > 0);
+        if (prices.length > 0) {
+          const minPrice = Math.min(...prices);
+          const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+          return {
+            success: true,
+            minPrice: parseFloat(minPrice.toFixed(2)),
+            trendPrice: parseFloat((minPrice * 1.15).toFixed(2)),
+            avgPrice: parseFloat(avgPrice.toFixed(2)),
+            listingsCount: prods.length,
+            blueprint: { id: card.blueprintId, name: card.englishName }
+          };
+        }
+      }
+    } catch(e) {}
+  }
+
   const expansions = await getYuGiOhExpansions();
   const codePrefix = (card.code || '').split('-')[0].toLowerCase().trim();
   const cardCleanName = cleanStr(card.englishName || card.name);

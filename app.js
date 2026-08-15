@@ -350,6 +350,7 @@
     const engName = card.englishName || card.name || "";
     const code = card.code || "";
     const cleanSlug = engName.toLowerCase().replace(/\s*\(v\.\d+\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const directCtUrl = card.cardTraderUrl || (card.blueprintId ? `https://www.cardtrader.com/it/cards/${card.blueprintId}` : null);
 
     return {
       itaName,
@@ -360,10 +361,10 @@
       cmEngUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(engName)}`,
       cmBestUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(engName || itaName)}`,
       
-      ctItaUrl: `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(itaName)}`,
-      ctCodeUrl: `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(code)}`,
-      ctEngUrl: `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(engName)}`,
-      ctBestUrl: `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(engName || itaName)}`,
+      ctItaUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(itaName)}`,
+      ctCodeUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(code)}`,
+      ctEngUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(engName)}`,
+      ctBestUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(engName || itaName)}`,
       
       ebUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + code + ' ' + engName)}&LH_BIN=1`,
       ebItaUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + code + ' ' + itaName)}&LH_BIN=1`,
