@@ -139,8 +139,40 @@
     populateWantsFilterDropdowns();
     setupEventListeners();
     setupAutoRefresh();
-    await checkServerConnection();
     render();
+
+    const connected = await checkServerConnection();
+    if (connected) {
+      await syncFromServer();
+    }
+  }
+
+  async function syncFromServer() {
+    if (!isServerConnected) return;
+    try {
+      const res = await fetch("/api/portfolio", { headers: getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.cards) && data.cards.length > 0) {
+          cards = data.cards;
+          if (Array.isArray(data.wants) && data.wants.length > 0) {
+            wants = data.wants;
+          }
+          if (data.lastUpdated) {
+            lastUpdated = data.lastUpdated;
+            localStorage.setItem(STORAGE_KEY_LAST_UPDATE, lastUpdated);
+          }
+          savePortfolioData();
+          saveWantsData();
+          populateFilterDropdowns();
+          populateWantsFilterDropdowns();
+          render();
+          console.log(`[CardVault] Sincronizzate ${cards.length} carte e ${wants.length} wants dal server!`);
+        }
+      }
+    } catch (err) {
+      console.warn("[CardVault] Impossibile recuperare dati iniziali dal server:", err);
+    }
   }
 
   function loadData() {
@@ -233,24 +265,36 @@
     return false;
   }
 
-  // Save directly to disk CSV if server is active
+  // Save directly to disk & server (Portfolio + Wants)
   async function syncPortfolioWithDiskCsv(silent = false) {
+    savePortfolioData();
+    saveWantsData();
     if (isServerConnected) {
       try {
         const res = await fetch("/api/save-portfolio", {
           method: "POST",
           headers: getAuthHeaders(),
-          body: JSON.stringify({ cards })
+          body: JSON.stringify({
+            cards,
+            wants,
+            lastUpdated: new Date().toLocaleString("it-IT")
+          })
         });
+        if (res.status === 401) {
+          if (!silent) {
+            showToast("🔒 Richiesta autenticazione 2FA per salvare le modifiche sul server.", "warning");
+          }
+          return false;
+        }
         const data = await res.json();
         if (data.success) {
           if (!silent) {
-            showToast("📁 File CSV aggiornato con successo direttamente su disco!");
+            showToast("📁 Dati sincronizzati con successo con il server!");
           }
           return true;
         }
       } catch (err) {
-        console.error("Errore salvataggio server CSV:", err);
+        console.error("Errore salvataggio server:", err);
       }
     }
     return false;
@@ -259,6 +303,19 @@
   // ==========================================
   // HELPERS & CALCULATIONS
   // ==========================================
+  
+  function getLanguageFlag(lang) {
+    if (!lang) return "🌐";
+    const l = String(lang).toLowerCase();
+    if (l.includes("ita") || l.includes("italiano")) return "🇮🇹";
+    if (l.includes("en") || l.includes("inglese") || l.includes("eng")) return "🇬🇧";
+    if (l.includes("de") || l.includes("tedesco") || l.includes("ger")) return "🇩🇪";
+    if (l.includes("fr") || l.includes("francese")) return "🇫🇷";
+    if (l.includes("es") || l.includes("spagnolo") || l.includes("spa")) return "🇪🇸";
+    if (l.includes("jp") || l.includes("giapponese") || l.includes("jap")) return "🇯🇵";
+    return "🌐";
+  }
+
   function formatEuro(val) {
     if (val === undefined || val === null || isNaN(val)) return "€ 0,00";
     return "€ " + Number(val).toLocaleString("it-IT", {
@@ -689,7 +746,7 @@
         <td class="col-num">${card.num || (index + 1)}</td>
         <td class="col-card">
           <div class="card-cell-name">${escapeHtml(card.name)}</div>
-          ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;">🇬🇧 ${escapeHtml(card.englishName)}</div>` : ''}
+          ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
           <div class="card-cell-sub">${escapeHtml(card.edition || "")}</div>
           ${card.notes ? `<div class="card-cell-notes">${escapeHtml(card.notes)}</div>` : ""}
         </td>
@@ -699,7 +756,7 @@
         </td>
         <td class="col-cond">
           <span class="badge-condition ${getConditionClass(card.condition)}">${escapeHtml(card.condition)}</span>
-          <div class="card-cell-sub">${escapeHtml(card.language)}</div>
+          <div class="card-cell-sub" style="margin-top: 3px;"><span style="font-size: 0.95rem; vertical-align: middle;">${getLanguageFlag(card.language)}</span> ${escapeHtml(card.language)}</div>
         </td>
         <td class="col-market">
           <div class="cell-price-block">
@@ -826,7 +883,7 @@
           <div class="card-item-header">
             <div>
               <div class="card-item-name">${escapeHtml(card.name)}</div>
-              ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;">🇬🇧 ${escapeHtml(card.englishName)}</div>` : ''}
+              ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
               <div class="card-cell-sub">${escapeHtml(card.expansion)} • <strong>${escapeHtml(card.code)}</strong></div>
             </div>
             ${trendBadgeHtml}
@@ -835,7 +892,7 @@
           <div class="card-item-tags">
             <span class="badge-rarity ${getRarityClass(card.rarity)}">${escapeHtml(card.rarity)}</span>
             <span class="badge-condition ${getConditionClass(card.condition)}">${escapeHtml(card.condition)}</span>
-            <span class="badge-condition">${escapeHtml(card.language)}</span>
+            <span class="badge-condition"><span style="font-size: 0.95rem; vertical-align: middle;">${getLanguageFlag(card.language)}</span> ${escapeHtml(card.language)}</span>
           </div>
 
           <div class="card-item-prices-grid">
@@ -1031,7 +1088,7 @@
         <td class="col-num">${index + 1}</td>
         <td class="col-card">
           <div class="card-cell-name">${escapeHtml(want.name)}</div>
-          ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;">🇬🇧 ${escapeHtml(want.englishName)}</div>` : ''}
+          ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(want.englishName)}</span></div>` : ''}
           <div class="card-cell-sub">${escapeHtml(want.edition || "")}</div>
           ${want.notes ? `<div class="card-cell-notes">${escapeHtml(want.notes)}</div>` : ""}
         </td>
@@ -1041,7 +1098,7 @@
         </td>
         <td class="col-cond">
           <span class="badge-condition ${getConditionClass(want.targetCondition)}">${escapeHtml(want.targetCondition || "Near Mint")}</span>
-          <div class="card-cell-sub">${escapeHtml(want.language)}</div>
+          <div class="card-cell-sub" style="margin-top: 3px;"><span style="font-size: 0.95rem; vertical-align: middle;">${getLanguageFlag(want.language)}</span> ${escapeHtml(want.language)}</div>
         </td>
         <td class="col-target">
           <div class="wants-target-price">${formatEuro(want.targetPrice)}</div>
@@ -1166,7 +1223,7 @@
           <div class="card-item-header">
             <div>
               <div class="card-item-name">${escapeHtml(want.name)}</div>
-              ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;">🇬🇧 ${escapeHtml(want.englishName)}</div>` : ''}
+              ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(want.englishName)}</span></div>` : ''}
               <div class="card-cell-sub">${escapeHtml(want.expansion)} • <strong>${escapeHtml(want.code)}</strong></div>
             </div>
             ${statusBadge}
@@ -1175,7 +1232,7 @@
           <div class="card-item-tags">
             <span class="badge-rarity ${getRarityClass(want.rarity)}">${escapeHtml(want.rarity)}</span>
             <span class="badge-condition ${getConditionClass(want.targetCondition)}">${escapeHtml(want.targetCondition)}</span>
-            <span class="badge-condition">${escapeHtml(want.language)}</span>
+            <span class="badge-condition"><span style="font-size: 0.95rem; vertical-align: middle;">${getLanguageFlag(want.language)}</span> ${escapeHtml(want.language)}</span>
           </div>
 
           <div class="card-item-prices-grid">
@@ -1850,7 +1907,7 @@
     editingWantId = null;
   }
 
-  function handleWantFormSubmit(e) {
+  async function handleWantFormSubmit(e) {
     e.preventDefault();
 
     const name = document.getElementById("want-form-name").value.trim();
@@ -1897,18 +1954,20 @@
     }
 
     saveWantsData();
+    await syncPortfolioWithDiskCsv(true);
     populateWantsFilterDropdowns();
     render();
     closeWantModal();
   }
 
-  function deleteWant(id) {
+  async function deleteWant(id) {
     const want = wants.find(w => w.id === id);
     if (!want) return;
 
     if (confirm(`Sei sicuro di voler rimuovere "${want.name}" dai tuoi Wants?`)) {
       wants = wants.filter(w => w.id !== id);
       saveWantsData();
+      await syncPortfolioWithDiskCsv(true);
       populateWantsFilterDropdowns();
       render();
       showToast(`Carta rimossa dai Wants.`);

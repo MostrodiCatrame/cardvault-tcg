@@ -18,6 +18,7 @@ const CSV_FILE_PATH = (process.platform === 'win32' && fs.existsSync('C:\\Users\
 
 const TOKEN_FILE_PATH = path.join(ROOT_DIR, '.cardtrader_token');
 const AUTH_CONFIG_FILE = path.join(ROOT_DIR, '.auth_config.json');
+const JSON_DATA_PATH = path.join(ROOT_DIR, 'data_portfolio.json');
 
 // Default initial user token (or from process.env)
 let CARDTRADER_TOKEN = process.env.CARDTRADER_TOKEN || 'eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJjYXJkdHJhZGVyLXByb2R1Y3Rpb24iLCJzdWIiOiJhcHA6OTkwMSIsImF1ZCI6ImFwcDo5OTAxIiwiZXhwIjo0OTQyNDE1NzcyLCJqdGkiOiI2NTM3OTkwNy1iY2RiLTRiZGEtODI2NS02NDExNTcyYzU1OTUiLCJpYXQiOjE3ODY3Mzg1NzIsIm5hbWUiOiJGZ2F2YWduaW4gQXBwIDIwMjQwNDEyMTIxNjExIn0.YcmBv-42ry0rMXzB1ZpqDMfLnSqY4MLcnCJox4jk9DM1-25S-miR_SArKoyIpR0G7Jg4RSfbK0GQKPPLLAOd2n6n34zUZ9qBuXg6yUOKr7vMLCYKh6N7R7e5wtRAvtVKf8V3oj5zeCQ2HfeBfF_fZTgqJzhbN1dCjUA7CRpaWMdHuYe6I1UMfizjLSjVvzWsKVq21i07hzsidfYCvrT8U7pqH2SJzxiumJqUhsYNBkWWItGj9Dec-fC03_LBWI1qfQ5b1lXOA8DXvAERzE06e-eJDS8ywwRWIBGc-VZ-Dhdty6jcG-b3GAGh8P-082ue5tga31RT-tg-aQqcjT9EzA';
@@ -381,6 +382,120 @@ function convertCardsToCsv(cards) {
   return header + '\r\n' + rows.join('\r\n') + '\r\n\r\n' + totalRow + '\r\n';
 }
 
+
+// Parse raw CSV string to card array
+function parseCsvCards(csvText) {
+  if (!csvText) return [];
+  const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== "");
+  if (lines.length < 2) return [];
+
+  const separator = lines[0].includes(";") ? ";" : ",";
+  const cards = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line || line.startsWith(";TOTALE")) continue;
+
+    const tokens = [];
+    let cur = "";
+    let insideQuote = false;
+
+    for (let charIndex = 0; charIndex < line.length; charIndex++) {
+      const char = line[charIndex];
+      if (char === '"') {
+        insideQuote = !insideQuote;
+      } else if (char === separator && !insideQuote) {
+        tokens.push(cur.trim().replace(/^"|"$/g, "").replace(/""/g, '"'));
+        cur = "";
+      } else {
+        cur += char;
+      }
+    }
+    tokens.push(cur.trim().replace(/^"|"$/g, "").replace(/""/g, '"'));
+
+    if (tokens.length >= 4 && tokens[1]) {
+      const parsePrice = (str) => {
+        if (!str) return 0;
+        const cleaned = str.replace(/[^0-9,.-]/g, "").replace(",", ".");
+        return parseFloat(cleaned) || 0;
+      };
+
+      const cmMin = parsePrice(tokens[8]);
+      const cmTrend = parsePrice(tokens[9]);
+      const ctMin = parsePrice(tokens[10]);
+      const ctTrend = parsePrice(tokens[11]);
+      const ebMin = parsePrice(tokens[12]) || parseFloat((cmMin * 1.02).toFixed(2));
+      const ebTrend = parsePrice(tokens[13]) || parseFloat((cmTrend * 1.02).toFixed(2));
+
+      cards.push({
+        id: parseInt(tokens[0]) || i,
+        num: parseInt(tokens[0]) || i,
+        name: tokens[1] || "Sconosciuta",
+        englishName: tokens[1] || "Sconosciuta",
+        expansion: tokens[2] || "",
+        code: tokens[3] || "",
+        rarity: tokens[4] || "Rare",
+        edition: tokens[5] || "",
+        language: tokens[6] || "Italiano (ITA)",
+        condition: tokens[7] || "Near Mint",
+        cmMin, cmTrend, ctMin, ctTrend, ebMin, ebTrend,
+        baseCmMin: cmMin, baseCmTrend: cmTrend,
+        baseCtMin: ctMin, baseCtTrend: ctTrend,
+        baseEbMin: ebMin, baseEbTrend: ebTrend,
+        trendStatus: (cmTrend > cmMin * 1.15) ? "up" : "stable",
+        trendPct: (cmTrend > cmMin) ? parseFloat(((cmTrend - cmMin) / cmMin * 10).toFixed(1)) : 0,
+        notes: tokens[14] || ""
+      });
+    }
+  }
+  return cards;
+}
+
+// Retrieve portfolio state with multi-tier fallback (JSON storage -> CSV -> cards-data.js)
+function getStoredPortfolio() {
+  // 1. JSON persistent storage (contains both cards and wants)
+  if (fs.existsSync(JSON_DATA_PATH)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(JSON_DATA_PATH, 'utf-8'));
+      if (data && Array.isArray(data.cards) && data.cards.length > 0) {
+        return data;
+      }
+    } catch (e) {}
+  }
+
+  // 2. CSV file on disk
+  if (fs.existsSync(CSV_FILE_PATH)) {
+    try {
+      const csvText = fs.readFileSync(CSV_FILE_PATH, 'utf-8');
+      const cards = parseCsvCards(csvText);
+      if (cards.length > 0) {
+        let defaultWants = [];
+        try {
+          const cardsData = require('./cards-data.js');
+          defaultWants = cardsData.DEFAULT_WANTS || [];
+        } catch (e) {}
+        return {
+          cards,
+          wants: defaultWants,
+          lastUpdated: new Date().toLocaleString("it-IT")
+        };
+      }
+    } catch (e) {}
+  }
+
+  // 3. Fallback to cards-data.js
+  try {
+    const cardsData = require('./cards-data.js');
+    return {
+      cards: cardsData.DEFAULT_CARDS || [],
+      wants: cardsData.DEFAULT_WANTS || [],
+      lastUpdated: new Date().toLocaleString("it-IT")
+    };
+  } catch (e) {
+    return { cards: [], wants: [], lastUpdated: new Date().toLocaleString("it-IT") };
+  }
+}
+
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -419,8 +534,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Init 2FA Setup: Generate secret and OTPAuth URL
+  // Init 2FA Setup: Generate secret and OTPAuth URL (Protected against overwrite)
   if (req.url === '/api/auth/setup-init' && req.method === 'POST') {
+    if (authConfig.enabled) {
+      const token = getBearerToken(req);
+      if (!verifySessionToken(token)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: "La protezione 2FA è già attiva su questo Vault. Solo l'amministratore autenticato può riconfigurarla."
+        }));
+        return;
+      }
+    }
+
     const secret = generateSecret(20);
     const otpAuthUrl = `otpauth://totp/CardVault:Fgavagnin?secret=${secret}&issuer=CardVault`;
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -433,8 +560,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Complete 2FA Setup: Validate first OTP & save password
+  // Complete 2FA Setup: Validate first OTP & save password (Protected against overwrite)
   if (req.url === '/api/auth/setup-complete' && req.method === 'POST') {
+    if (authConfig.enabled) {
+      const token = getBearerToken(req);
+      if (!verifySessionToken(token)) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: "Operazione non consentita: la 2FA è già stata configurata. Impossibile sovrascrivere l'account senza autenticazione."
+        }));
+        return;
+      }
+    }
+
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
@@ -508,9 +647,9 @@ const server = http.createServer(async (req, res) => {
   // ==========================================
   // AUTH MIDDLEWARE FOR SENSITIVE API ENDPOINTS
   // ==========================================
-  const isProtectedApi = req.url.startsWith('/api/save') ||
-                         req.url.startsWith('/api/load') ||
-                         req.url.startsWith('/api/cardtrader');
+  const isProtectedApi = (req.url.startsWith('/api/save') ||
+                          req.url.startsWith('/api/cardtrader') ||
+                          (req.url.startsWith('/api/portfolio') && req.method === 'POST'));
 
   if (isProtectedApi && authConfig.enabled) {
     const token = getBearerToken(req);
@@ -681,23 +820,66 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // API: Save Portfolio Cards directly to Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv
-  if (req.url === '/api/save-portfolio' && req.method === 'POST') {
+  // API: Get Full Portfolio & Wants (JSON)
+  if (req.url === '/api/portfolio' && req.method === 'GET') {
+    try {
+      const data = getStoredPortfolio();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        cards: data.cards || [],
+        wants: data.wants || [],
+        lastUpdated: data.lastUpdated || new Date().toLocaleString("it-IT")
+      }));
+    } catch (err) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  // API: Save Portfolio Cards & Wants (JSON & CSV)
+  if ((req.url === '/api/save-portfolio' || req.url === '/api/portfolio') && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
     req.on('end', () => {
       try {
         const payload = JSON.parse(body);
         const cards = payload.cards || [];
-        const csvContent = convertCardsToCsv(cards);
+        const wants = payload.wants || [];
+        const lastUpdated = payload.lastUpdated || new Date().toLocaleString("it-IT");
 
-        fs.writeFileSync(CSV_FILE_PATH, csvContent, 'utf-8');
-        console.log(`[CardVault Sync] ${cards.length} carte salvate con successo in: ${CSV_FILE_PATH}`);
+        // Save JSON store
+        fs.writeFileSync(JSON_DATA_PATH, JSON.stringify({ cards, wants, lastUpdated }, null, 2), 'utf-8');
+
+        // Save CSV file if cards present
+        if (cards.length > 0) {
+          const csvContent = convertCardsToCsv(cards);
+          try {
+            fs.writeFileSync(CSV_FILE_PATH, csvContent, 'utf-8');
+          } catch (csvErr) {
+            console.error('[CardVault Sync] Avviso scrittura CSV:', csvErr.message);
+          }
+          const localCsv = path.join(ROOT_DIR, 'Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv');
+          if (CSV_FILE_PATH !== localCsv) {
+            try {
+              fs.writeFileSync(localCsv, csvContent, 'utf-8');
+            } catch (e) {}
+          }
+        }
+
+        console.log(`[CardVault Sync] ${cards.length} carte e ${wants.length} wants salvati con successo!`);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, count: cards.length, message: 'File CSV aggiornato con successo su disco!' }));
+        res.end(JSON.stringify({
+          success: true,
+          count: cards.length,
+          wantsCount: wants.length,
+          lastUpdated: lastUpdated,
+          message: 'Portfolio e Wants sincronizzati con successo sul server e su disco!'
+        }));
       } catch (err) {
-        console.error('[CardVault Sync] Errore durante il salvataggio del CSV:', err);
+        console.error('[CardVault Sync] Errore salvataggio:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
