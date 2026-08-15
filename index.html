@@ -57,6 +57,23 @@
           <span id="btn-sync-ct-text">⚡ Sincronizza CardTrader (Live)</span>
         </button>
 
+        <button type="button" class="btn btn-marketplaces-sync" id="btn-sync-marketplaces" title="Sincronizza immagini HD (YGOPRODeck) e prezzi Cardmarket / TCGplayer / eBay">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span id="btn-sync-mp-text">🌐 Sincronizza Mercati Globali</span>
+        </button>
+
+        <button type="button" class="btn btn-secondary" id="btn-open-api-config" title="Configura token CardTrader e JustTCG API">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>⚙️ API</span>
+        </button>
+
         <button type="button" class="btn btn-secondary" id="btn-save-disk" title="Salva modifiche direttamente sul file CSV">
           <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
@@ -796,6 +813,129 @@
           <button type="submit" class="btn btn-primary" id="btn-save-want">Salva nei Wants</button>
         </div>
       </form>
+    </div>
+  </div>
+
+    <!-- Modal: Multi-Marketplace Live Sync Progress & Results (YGOPRODeck, JustTCG, Cardmarket, eBay) -->
+  <div class="modal-backdrop" id="mp-sync-modal" style="display: none;" aria-hidden="true" role="dialog">
+    <div class="modal-card" style="max-width: 700px;">
+      <div class="modal-header">
+        <h2 style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #0ea5e9;">🌐</span> Sincronizzazione Mercati Globali & Immagini HD
+        </h2>
+        <button type="button" class="modal-close-btn" id="btn-close-mp-modal" aria-label="Chiudi modale">&times;</button>
+      </div>
+
+      <div style="padding: 1.5rem;">
+        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+          Interroga <strong>YGOPRODeck API</strong> per scaricare gli artwork ufficiali in HD, i dati del mostro e verifica le quotazioni di mercato su <strong>Cardmarket</strong>, <strong>TCGplayer</strong> ed <strong>eBay</strong>.
+        </p>
+
+        <div class="ct-sync-progress-wrap">
+          <div class="ct-progress-header">
+            <span id="mp-progress-status-text">Avvio sincronizzazione mercati...</span>
+            <strong id="mp-progress-pct-text">0%</strong>
+          </div>
+          <div class="ct-progress-bar-bg">
+            <div class="ct-progress-bar-fill mp-fill" id="mp-progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="ct-logs-container" id="mp-logs-box">
+          <!-- Live logs populate here -->
+        </div>
+
+        <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" id="btn-close-mp-done" style="display: none;">Chiudi e Mostra Portfolio</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: API & Provider Settings -->
+  <div class="modal-backdrop" id="api-config-modal" style="display: none;" aria-hidden="true" role="dialog">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-header">
+        <h2 style="display: flex; align-items: center; gap: 8px;">
+          <span>⚙️</span> Configurazione Provider & Token API
+        </h2>
+        <button type="button" class="modal-close-btn" id="btn-close-api-modal" aria-label="Chiudi modale">&times;</button>
+      </div>
+
+      <div style="padding: 1.5rem;">
+        <div class="api-provider-card">
+          <div class="apc-header">
+            <strong>🃏 YGOPRODeck API</strong>
+            <span class="badge-status-ok">Attivo (100% Gratuito)</span>
+          </div>
+          <p class="apc-desc">Fornisce artwork originali in HD, tipo mostro, testo carte e prezzi base globali. Non richiede chiavi API.</p>
+        </div>
+
+        <div class="api-provider-card" style="margin-top: 1rem;">
+          <div class="apc-header">
+            <strong>⚡ CardTrader API v2</strong>
+            <span class="badge-status-ok" id="status-cardtrader-badge">Connesso</span>
+          </div>
+          <p class="apc-desc">Autenticazione ufficiale per prezzi minimi reali, trend e listings in Europa.</p>
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label for="input-cardtrader-token">Token Bearer CardTrader</label>
+            <input type="password" id="input-cardtrader-token" placeholder="Incolla token CardTrader..." class="form-input">
+          </div>
+        </div>
+
+        <div class="api-provider-card" style="margin-top: 1rem;">
+          <div class="apc-header">
+            <strong>🌐 JustTCG API (Cardmarket & TCGplayer)</strong>
+            <span class="badge-status-opt" id="status-justtcg-badge">Opzionale</span>
+          </div>
+          <p class="apc-desc">Aggregatore per consultare i prezzi Cardmarket per set/rarità senza blocchi Cloudflare (1.000 req/mese gratis su justtcg.com).</p>
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label for="input-justtcg-key">API Key JustTCG (Opzionale)</label>
+            <input type="text" id="input-justtcg-key" placeholder="es. jtcg_live_xxxx" class="form-input">
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-api-modal">Annulla</button>
+          <button type="button" class="btn btn-primary" id="btn-save-api-config">Salva Impostazioni API</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Card HD Lightbox & Details -->
+  <div class="modal-backdrop" id="card-lightbox-modal" style="display: none;" aria-hidden="true" role="dialog">
+    <div class="modal-card lightbox-card" style="max-width: 780px;">
+      <div class="lightbox-layout">
+        <div class="lightbox-image-wrap">
+          <img id="lightbox-img" src="" alt="Carta Yu-Gi-Oh! HD" class="lightbox-img">
+          <div class="lightbox-foil-fx"></div>
+        </div>
+        <div class="lightbox-info-wrap">
+          <div class="lightbox-header">
+            <h2 id="lightbox-name">Nome Carta</h2>
+            <button type="button" class="modal-close-btn" id="btn-close-lightbox" aria-label="Chiudi">&times;</button>
+          </div>
+          <div id="lightbox-sub" class="lightbox-meta">RA04-IT038 • Quarter Century Stampede</div>
+          <div id="lightbox-tags" class="lightbox-tags"></div>
+          
+          <div class="lightbox-desc-box" id="lightbox-desc-box">
+            <h4>Effetto / Descrizione</h4>
+            <p id="lightbox-desc">Caricamento testo...</p>
+          </div>
+
+          <div class="lightbox-prices-section">
+            <h4>Quotazioni Live Rilevate</h4>
+            <div class="lightbox-prices-grid" id="lightbox-prices-grid">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <div class="lightbox-links-row" id="lightbox-links-row">
+            <!-- Market links -->
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

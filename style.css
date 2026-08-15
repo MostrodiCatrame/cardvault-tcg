@@ -1840,3 +1840,298 @@ body {
     align-items: flex-start;
   }
 }
+
+/* ==========================================
+   MULTI-MARKETPLACE & HD ARTWORK STYLES
+   ========================================== */
+.btn-marketplaces-sync {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  color: #fff;
+  border-color: #38bdf8;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25);
+}
+
+.btn-marketplaces-sync:hover {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);
+  transform: translateY(-1px);
+}
+
+.mp-fill {
+  background: linear-gradient(90deg, #0284c7, #38bdf8) !important;
+}
+
+/* Collector Grid Card Body & Artwork */
+.card-item-body {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.card-item-art-wrap {
+  width: 76px;
+  min-width: 76px;
+  height: 110px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+  background: #111827;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card-item-art-wrap:hover {
+  transform: scale(1.06);
+  border-color: var(--accent-gold);
+  box-shadow: 0 6px 18px rgba(229, 184, 66, 0.35);
+}
+
+.card-item-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-art-foil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 60%);
+  pointer-events: none;
+}
+
+.card-art-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.03);
+}
+
+.card-art-placeholder-icon {
+  font-size: 1.5rem;
+}
+
+.card-art-placeholder-text {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.card-item-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.badge-cardtype {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+/* Lightbox Modal */
+.lightbox-layout {
+  display: flex;
+  gap: 24px;
+  padding: 1.75rem;
+}
+
+@media (max-width: 720px) {
+  .lightbox-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+.lightbox-image-wrap {
+  width: 250px;
+  min-width: 250px;
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+}
+
+.lightbox-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--radius-md);
+}
+
+.lightbox-foil-fx {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(125deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 50%, rgba(255,215,0,0.15) 100%);
+  pointer-events: none;
+}
+
+.lightbox-info-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.lightbox-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.lightbox-header h2 {
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  color: #fff;
+}
+
+.lightbox-meta {
+  font-size: 0.85rem;
+  color: var(--accent-gold);
+  margin-top: 4px;
+}
+
+.lightbox-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.lightbox-desc-box {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-top: 10px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.lightbox-desc-box h4 {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.lightbox-desc-box p {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.lightbox-prices-section {
+  margin-top: 14px;
+}
+
+.lightbox-prices-section h4 {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.lightbox-prices-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.lpg-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.lpg-name {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.lpg-val {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 2px;
+}
+
+.lightbox-links-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+/* API Config Modal */
+.api-provider-card {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.apc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.badge-status-ok {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-status-opt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.apc-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+.table-art-thumb {
+  width: 26px;
+  height: 38px;
+  border-radius: 2px;
+  object-fit: cover;
+  vertical-align: middle;
+  margin-right: 8px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+.table-art-thumb:hover {
+  transform: scale(2.2);
+  z-index: 10;
+  position: relative;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.8);
+}

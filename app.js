@@ -109,6 +109,34 @@
   const btnViewWantsCards = document.getElementById("view-mode-wants-cards");
   const btnAddFirstWant = document.getElementById("btn-add-first-want");
 
+    // DOM Elements - Multi-Marketplace & Lightbox & API Settings
+  const btnSyncMarketplaces = document.getElementById("btn-sync-marketplaces");
+  const btnOpenApiConfig = document.getElementById("btn-open-api-config");
+  const mpSyncModal = document.getElementById("mp-sync-modal");
+  const btnCloseMpModal = document.getElementById("btn-close-mp-modal");
+  const btnCloseMpDone = document.getElementById("btn-close-mp-done");
+  const mpLogsBox = document.getElementById("mp-logs-box");
+  const mpProgressStatusText = document.getElementById("mp-progress-status-text");
+  const mpProgressPctText = document.getElementById("mp-progress-pct-text");
+  const mpProgressFill = document.getElementById("mp-progress-fill");
+
+  const apiConfigModal = document.getElementById("api-config-modal");
+  const btnCloseApiModal = document.getElementById("btn-close-api-modal");
+  const btnCancelApiModal = document.getElementById("btn-cancel-api-modal");
+  const btnSaveApiConfig = document.getElementById("btn-save-api-config");
+  const inputCardtraderToken = document.getElementById("input-cardtrader-token");
+  const inputJusttcgKey = document.getElementById("input-justtcg-key");
+
+  const cardLightboxModal = document.getElementById("card-lightbox-modal");
+  const btnCloseLightbox = document.getElementById("btn-close-lightbox");
+  const lightboxImg = document.getElementById("lightbox-img");
+  const lightboxName = document.getElementById("lightbox-name");
+  const lightboxSub = document.getElementById("lightbox-sub");
+  const lightboxTags = document.getElementById("lightbox-tags");
+  const lightboxDesc = document.getElementById("lightbox-desc");
+  const lightboxPricesGrid = document.getElementById("lightbox-prices-grid");
+  const lightboxLinksRow = document.getElementById("lightbox-links-row");
+
   // Modals & Actions
   const cardModal = document.getElementById("card-modal");
   const cardModalTitle = document.getElementById("modal-title");
@@ -745,10 +773,15 @@
       row.innerHTML = `
         <td class="col-num">${card.num || (index + 1)}</td>
         <td class="col-card">
-          <div class="card-cell-name">${escapeHtml(card.name)}</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${card.imageUrl ? `<img src="${card.imageUrl}" alt="${escapeHtml(card.name)}" class="table-art-thumb" data-id="${card.id}" title="Clicca per ingrandire la carta in HD" />` : ''}
+            <div>
+              <div class="card-cell-name" style="cursor: pointer;" data-lightbox-id="${card.id}">${escapeHtml(card.name)}</div>
           ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
           <div class="card-cell-sub">${escapeHtml(card.edition || "")}</div>
           ${card.notes ? `<div class="card-cell-notes">${escapeHtml(card.notes)}</div>` : ""}
+            </div>
+          </div>
         </td>
         <td class="col-rarity">
           <span class="badge-rarity ${getRarityClass(card.rarity)}">${escapeHtml(card.rarity)}</span>
@@ -825,9 +858,16 @@
               </div>
             </div>
 
-            <button type="button" class="action-btn-sm btn-ct-single" data-id="${card.id}" title="⚡ Sincronizza prezzo CardTrader reale adesso">
+            <button type="button" class="action-btn-sm btn-ct-single" data-id="${card.id}" title="⚡ Sincronizza CardTrader Live">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+            </button>
+            <button type="button" class="action-btn-sm btn-marketplaces-single" data-id="${card.id}" title="🌐 Sincronizza Mercati & Artwork HD" style="color: #0ea5e9;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path>
               </svg>
             </button>
 
@@ -879,46 +919,60 @@
       const ebTrendInfo = getPlatformTrend(card.ebMin, card.ebTrend, card.baseEbTrend);
 
       cardEl.innerHTML = `
-        <div>
-          <div class="card-item-header">
-            <div>
-              <div class="card-item-name">${escapeHtml(card.name)}</div>
-              ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
-              <div class="card-cell-sub">${escapeHtml(card.expansion)} • <strong>${escapeHtml(card.code)}</strong></div>
+        <div class="card-item-body">
+          ${card.imageUrl ? `
+            <div class="card-item-art-wrap" data-lightbox-id="${card.id}" title="Clicca per ingrandire la carta in HD">
+              <img class="card-item-art" src="${card.imageUrl}" alt="${escapeHtml(card.name)}" loading="lazy" />
+              <div class="card-art-foil"></div>
             </div>
-            ${trendBadgeHtml}
-          </div>
+          ` : `
+            <div class="card-item-art-wrap card-art-placeholder" data-lightbox-id="${card.id}" title="Clicca per visualizzare">
+              <div class="card-art-placeholder-icon">🃏</div>
+              <span class="card-art-placeholder-text">${escapeHtml(card.code || 'TCG')}</span>
+            </div>
+          `}
+          <div class="card-item-content">
+            <div class="card-item-header">
+              <div>
+                <div class="card-item-name" style="cursor: pointer;" data-lightbox-id="${card.id}">${escapeHtml(card.name)}</div>
+                ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
+                <div class="card-cell-sub">${escapeHtml(card.expansion)} • <strong>${escapeHtml(card.code)}</strong></div>
+              </div>
+              ${trendBadgeHtml}
+            </div>
 
-          <div class="card-item-tags">
-            <span class="badge-rarity ${getRarityClass(card.rarity)}">${escapeHtml(card.rarity)}</span>
-            <span class="badge-condition ${getConditionClass(card.condition)}">${escapeHtml(card.condition)}</span>
-            <span class="badge-condition"><span style="font-size: 0.95rem; vertical-align: middle;">${getLanguageFlag(card.language)}</span> ${escapeHtml(card.language)}</span>
-          </div>
+            <div class="card-item-tags">
+              <span class="badge-rarity ${getRarityClass(card.rarity)}">${escapeHtml(card.rarity)}</span>
+              <span class="badge-condition ${getConditionClass(card.condition)}">${escapeHtml(card.condition)}</span>
+              <span class="badge-condition"><span style="font-size: 0.95rem; vertical-align: middle;">${getLanguageFlag(card.language)}</span> ${escapeHtml(card.language)}</span>
+              ${card.cardType ? `<span class="badge-cardtype">${escapeHtml(card.cardType)}</span>` : ''}
+            </div>
 
-          <div class="card-item-prices-grid">
-            <div class="cip-col">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                <span class="cip-source">Cardmarket</span>
-                <span class="platform-trend-tag ${cmTrendInfo.class}" title="Trend Cardmarket: ${cmTrendInfo.label}">${cmTrendInfo.symbol}</span>
+            <div class="card-item-prices-grid">
+              <div class="cip-col">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                  <span class="cip-source">Cardmarket</span>
+                  <span class="platform-trend-tag ${cmTrendInfo.class}" title="Trend Cardmarket: ${cmTrendInfo.label}">${cmTrendInfo.symbol}</span>
+                </div>
+                <span class="cip-val">${formatEuro(card.cmTrend)}</span>
+                <span class="cip-sub">Min ${formatEuro(card.cmMin)}</span>
               </div>
-              <span class="cip-val">${formatEuro(card.cmTrend)}</span>
-              <span class="cip-sub">Min ${formatEuro(card.cmMin)}</span>
-            </div>
-            <div class="cip-col">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                <span class="cip-source">CardTrader</span>
-                <span class="platform-trend-tag ${ctTrendInfo.class}" title="Trend CardTrader: ${ctTrendInfo.label}">${ctTrendInfo.symbol}</span>
+              <div class="cip-col">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                  <span class="cip-source">CardTrader</span>
+                  <span class="platform-trend-tag ${ctTrendInfo.class}" title="Trend CardTrader: ${ctTrendInfo.label}">${ctTrendInfo.symbol}</span>
+                </div>
+                <span class="cip-val" style="color: #fb923c;">${formatEuro(card.ctTrend)}</span>
+                <span class="cip-sub">Min ${formatEuro(card.ctMin)}</span>
               </div>
-              <span class="cip-val" style="color: #fb923c;">${formatEuro(card.ctTrend)}</span>
-              <span class="cip-sub">Min ${formatEuro(card.ctMin)}</span>
-            </div>
-            <div class="cip-col">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                <span class="cip-source" style="color: var(--eb-gold);">eBay</span>
-                <span class="platform-trend-tag ${ebTrendInfo.class}" title="Trend eBay: ${ebTrendInfo.label}">${ebTrendInfo.symbol}</span>
+              <div class="cip-col">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                  <span class="cip-source" style="color: var(--eb-gold);">eBay</span>
+                  <span class="platform-trend-tag ${ebTrendInfo.class}" title="Trend eBay: ${ebTrendInfo.label}">${ebTrendInfo.symbol}</span>
+                </div>
+                <span class="cip-val" style="color: var(--eb-gold);">${formatEuro(card.ebTrend)}</span>
+                <span class="cip-sub">Min ${formatEuro(card.ebMin)}</span>
               </div>
-              <span class="cip-val" style="color: var(--eb-gold);">${formatEuro(card.ebTrend)}</span>
-              <span class="cip-sub">Min ${formatEuro(card.ebMin)}</span>
             </div>
           </div>
         </div>
@@ -932,6 +986,9 @@
           <div class="actions-cell">
             <button type="button" class="action-btn-sm btn-ct-single" data-id="${card.id}" title="⚡ Sincronizza CardTrader Live">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </button>
+            <button type="button" class="action-btn-sm btn-marketplaces-single" data-id="${card.id}" title="🌐 Sincronizza Mercati & Artwork HD" style="color: #0ea5e9;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg>
             </button>
             <a href="${cmUrl}" target="_blank" class="action-btn-sm" title="Vedi '${itaName}' su Cardmarket Italia">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
@@ -1542,6 +1599,25 @@
 
     // Global Delegated Handler
     document.addEventListener("click", (e) => {
+      
+      const mpSingleBtn = e.target.closest(".btn-marketplaces-single");
+      if (mpSingleBtn) {
+        syncSingleMarketplaces(Number(mpSingleBtn.dataset.id));
+        return;
+      }
+
+      const lightboxTrigger = e.target.closest("[data-lightbox-id]");
+      if (lightboxTrigger) {
+        openCardLightbox(Number(lightboxTrigger.dataset.lightboxId));
+        return;
+      }
+
+      const artThumb = e.target.closest(".table-art-thumb");
+      if (artThumb) {
+        openCardLightbox(Number(artThumb.dataset.id));
+        return;
+      }
+
       const ctSingleBtn = e.target.closest(".btn-ct-single");
       if (ctSingleBtn) {
         startCardTraderSyncSingle(Number(ctSingleBtn.dataset.id));
@@ -1578,6 +1654,34 @@
         return;
       }
     });
+
+    
+    // Multi-Marketplace Sync & API Settings & Lightbox
+    if (btnSyncMarketplaces) btnSyncMarketplaces.addEventListener("click", startMarketplacesSyncAll);
+    if (btnCloseMpModal) btnCloseMpModal.addEventListener("click", () => { mpSyncModal.style.display = "none"; });
+    if (btnCloseMpDone) btnCloseMpDone.addEventListener("click", () => { mpSyncModal.style.display = "none"; });
+
+    if (btnOpenApiConfig) btnOpenApiConfig.addEventListener("click", openApiConfigModal);
+    if (btnCloseApiModal) btnCloseApiModal.addEventListener("click", closeApiConfigModal);
+    if (btnCancelApiModal) btnCancelApiModal.addEventListener("click", closeApiConfigModal);
+    if (btnSaveApiConfig) btnSaveApiConfig.addEventListener("click", saveApiConfig);
+
+    if (btnCloseLightbox) btnCloseLightbox.addEventListener("click", closeCardLightbox);
+    if (cardLightboxModal) {
+      cardLightboxModal.addEventListener("click", (e) => {
+        if (e.target === cardLightboxModal) closeCardLightbox();
+      });
+    }
+    if (mpSyncModal) {
+      mpSyncModal.addEventListener("click", (e) => {
+        if (e.target === mpSyncModal) mpSyncModal.style.display = "none";
+      });
+    }
+    if (apiConfigModal) {
+      apiConfigModal.addEventListener("click", (e) => {
+        if (e.target === apiConfigModal) closeApiConfigModal();
+      });
+    }
 
     // CSV Export & Import & Direct Save
     if (btnExportCsv) btnExportCsv.addEventListener("click", exportToCsv);

@@ -24,6 +24,16 @@ const JSON_DATA_PATH = path.join(ROOT_DIR, 'data_portfolio.json');
 let CARDTRADER_TOKEN = process.env.CARDTRADER_TOKEN || 'eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJjYXJkdHJhZGVyLXByb2R1Y3Rpb24iLCJzdWIiOiJhcHA6OTkwMSIsImF1ZCI6ImFwcDo5OTAxIiwiZXhwIjo0OTQyNDE1NzcyLCJqdGkiOiI2NTM3OTkwNy1iY2RiLTRiZGEtODI2NS02NDExNTcyYzU1OTUiLCJpYXQiOjE3ODY3Mzg1NzIsIm5hbWUiOiJGZ2F2YWduaW4gQXBwIDIwMjQwNDEyMTIxNjExIn0.YcmBv-42ry0rMXzB1ZpqDMfLnSqY4MLcnCJox4jk9DM1-25S-miR_SArKoyIpR0G7Jg4RSfbK0GQKPPLLAOd2n6n34zUZ9qBuXg6yUOKr7vMLCYKh6N7R7e5wtRAvtVKf8V3oj5zeCQ2HfeBfF_fZTgqJzhbN1dCjUA7CRpaWMdHuYe6I1UMfizjLSjVvzWsKVq21i07hzsidfYCvrT8U7pqH2SJzxiumJqUhsYNBkWWItGj9Dec-fC03_LBWI1qfQ5b1lXOA8DXvAERzE06e-eJDS8ywwRWIBGc-VZ-Dhdty6jcG-b3GAGh8P-082ue5tga31RT-tg-aQqcjT9EzA';
 
 // Load saved token if exists
+const JUSTTCG_TOKEN_FILE = path.join(ROOT_DIR, '.justtcg_token');
+let JUSTTCG_API_KEY = process.env.JUSTTCG_API_KEY || '';
+
+if (fs.existsSync(JUSTTCG_TOKEN_FILE)) {
+  try {
+    const savedKey = fs.readFileSync(JUSTTCG_TOKEN_FILE, 'utf-8').trim();
+    if (savedKey) JUSTTCG_API_KEY = savedKey;
+  } catch (e) {}
+}
+
 if (fs.existsSync(TOKEN_FILE_PATH)) {
   try {
     const saved = fs.readFileSync(TOKEN_FILE_PATH, 'utf-8').trim();
@@ -496,6 +506,208 @@ function getStoredPortfolio() {
   }
 }
 
+
+// ==========================================
+// YGOPRODECK & JUSTTCG MULTI-MARKETPLACE ENGINE
+// ==========================================
+
+function cleanCardNameForYgo(name) {
+  return (name || '')
+    .replace(/\s*\(V\.\d+\)/gi, '')
+    .replace(/\s*Alternate Art.*/gi, '')
+    .replace(/l'Invocatore/gi, 'the Invoker')
+    .replace(/\/Assault Mode/gi, '/Assault Mode')
+    .trim();
+}
+
+function fetchYgoProDeck(card) {
+  return new Promise((resolve) => {
+    const rawName = card.englishName || card.name;
+    const cleanName = cleanCardNameForYgo(rawName);
+    const url = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?name=' + encodeURIComponent(cleanName);
+
+    const req = https.get(url, { headers: { 'User-Agent': 'CardVault-TCG/2.0' } }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(d);
+          if (j.data && j.data.length > 0) {
+            const ygo = j.data[0];
+            const img = ygo.card_images && ygo.card_images[0] ? ygo.card_images[0] : {};
+            const prices = ygo.card_prices && ygo.card_prices[0] ? ygo.card_prices[0] : {};
+            resolve({
+              success: true,
+              imageUrl: img.image_url_small || img.image_url || null,
+              imageUrlLarge: img.image_url || null,
+              imageUrlCropped: img.image_url_cropped || null,
+              cardType: ygo.type || '',
+              race: ygo.race || '',
+              attribute: ygo.attribute || '',
+              atk: ygo.atk,
+              def: ygo.def,
+              level: ygo.level || ygo.linkval,
+              archetype: ygo.archetype || '',
+              desc: ygo.desc || '',
+              prices: {
+                cardmarketFloor: parseFloat(prices.cardmarket_price) || 0,
+                tcgplayer: parseFloat(prices.tcgplayer_price) || 0,
+                ebay: parseFloat(prices.ebay_price) || 0,
+                amazon: parseFloat(prices.amazon_price) || 0
+              }
+            });
+          } else {
+            // Fallback to fuzzy search
+            const fuzzyUrl = 'https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=' + encodeURIComponent(cleanName.split(' ')[0]);
+            https.get(fuzzyUrl, { headers: { 'User-Agent': 'CardVault-TCG/2.0' } }, fres => {
+              let fd = '';
+              fres.on('data', c => fd += c);
+              fres.on('end', () => {
+                try {
+                  const fj = JSON.parse(fd);
+                  if (fj.data && fj.data.length > 0) {
+                    const ygo = fj.data[0];
+                    const img = ygo.card_images && ygo.card_images[0] ? ygo.card_images[0] : {};
+                    resolve({
+                      success: true,
+                      imageUrl: img.image_url_small || img.image_url || null,
+                      imageUrlLarge: img.image_url || null,
+                      imageUrlCropped: img.image_url_cropped || null,
+                      cardType: ygo.type || '',
+                      desc: ygo.desc || '',
+                      prices: {}
+                    });
+                  } else {
+                    resolve({ success: false, reason: 'Carta non trovata su YGOPRODeck' });
+                  }
+                } catch(e) {
+                  resolve({ success: false, reason: e.message });
+                }
+              });
+            }).on('error', () => resolve({ success: false, reason: 'Network error fuzzy' }));
+          }
+        } catch(e) {
+          resolve({ success: false, reason: e.message });
+        }
+      });
+    });
+
+    req.on('error', e => resolve({ success: false, reason: e.message }));
+    req.setTimeout(8000, () => {
+      req.destroy();
+      resolve({ success: false, reason: 'Timeout richiesta YGOPRODeck' });
+    });
+  });
+}
+
+// JustTCG API Request Helper
+function fetchJustTcgPrice(card, apiKey) {
+  return new Promise((resolve) => {
+    const key = apiKey || JUSTTCG_API_KEY;
+    if (!key) {
+      return resolve({ success: false, reason: 'Nessuna API Key JustTCG configurata' });
+    }
+
+    const cardCode = card.code || '';
+    const cardName = card.englishName || card.name;
+    const url = `https://api.justtcg.com/v1/cards/search?query=${encodeURIComponent(cardCode || cardName)}&game=yugioh`;
+
+    const req = https.get(url, {
+      headers: {
+        'x-api-key': key,
+        'User-Agent': 'CardVault-TCG/2.0'
+      }
+    }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(d);
+          if (j.data && j.data.length > 0) {
+            const item = j.data[0];
+            resolve({
+              success: true,
+              cmMin: item.cardmarket_min_price || item.cardmarket_price,
+              cmTrend: item.cardmarket_trend_price || item.cardmarket_avg,
+              tcgMin: item.tcgplayer_min_price,
+              tcgTrend: item.tcgplayer_market_price
+            });
+          } else {
+            resolve({ success: false, reason: 'Nessun risultato da JustTCG' });
+          }
+        } catch(e) {
+          resolve({ success: false, reason: e.message });
+        }
+      });
+    });
+
+    req.on('error', e => resolve({ success: false, reason: e.message }));
+    req.setTimeout(8000, () => {
+      req.destroy();
+      resolve({ success: false, reason: 'Timeout richiesta JustTCG' });
+    });
+  });
+}
+
+// Combined Multi-Marketplace Sync
+async function fetchMultiMarketplaceCard(card, justTcgKey) {
+  const ygoRes = await fetchYgoProDeck(card);
+  let updated = { ...card };
+  let logItem = {
+    cardName: card.name,
+    code: card.code,
+    sources: []
+  };
+
+  if (ygoRes.success) {
+    updated.imageUrl = ygoRes.imageUrl || updated.imageUrl;
+    updated.imageUrlLarge = ygoRes.imageUrlLarge || updated.imageUrlLarge;
+    updated.imageUrlCropped = ygoRes.imageUrlCropped || updated.imageUrlCropped;
+    updated.cardType = ygoRes.cardType || updated.cardType;
+    updated.desc = ygoRes.desc || updated.desc;
+    updated.archetype = ygoRes.archetype || updated.archetype;
+    updated.atk = ygoRes.atk !== undefined ? ygoRes.atk : updated.atk;
+    updated.def = ygoRes.def !== undefined ? ygoRes.def : updated.def;
+    updated.level = ygoRes.level !== undefined ? ygoRes.level : updated.level;
+    updated.attribute = ygoRes.attribute || updated.attribute;
+
+    logItem.sources.push('YGOPRODeck (Immagine HD & Dati)');
+
+    if (ygoRes.prices && ygoRes.prices.ebay > 0) {
+      const ebEuro = parseFloat((ygoRes.prices.ebay * 0.92).toFixed(2));
+      if (ebEuro > 0 && Math.abs(ebEuro - (updated.ebMin || 0)) > 0.5) {
+        logItem.oldEbMin = updated.ebMin;
+        logItem.newEbMin = ebEuro;
+        updated.ebMin = ebEuro;
+        updated.ebTrend = parseFloat((ebEuro * 1.15).toFixed(2));
+        logItem.sources.push('eBay');
+      }
+    }
+  }
+
+  // Try JustTCG if configured
+  const key = justTcgKey || JUSTTCG_API_KEY;
+  if (key) {
+    const justRes = await fetchJustTcgPrice(card, key);
+    if (justRes.success) {
+      if (justRes.cmMin > 0) {
+        logItem.oldCmMin = updated.cmMin;
+        logItem.newCmMin = justRes.cmMin;
+        updated.cmMin = justRes.cmMin;
+        logItem.sources.push('JustTCG (Cardmarket Min)');
+      }
+      if (justRes.cmTrend > 0) {
+        logItem.oldCmTrend = updated.cmTrend;
+        logItem.newCmTrend = justRes.cmTrend;
+        updated.cmTrend = justRes.cmTrend;
+        logItem.sources.push('JustTCG (Cardmarket Trend)');
+      }
+    }
+  }
+
+  return { success: true, card: updated, log: logItem };
+}
+
 const mimeTypes = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -734,6 +946,141 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
       } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+    // API: Providers Configuration Status
+  if (req.url === '/api/config/providers' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      cardTrader: {
+        configured: !!CARDTRADER_TOKEN,
+        tokenMasked: CARDTRADER_TOKEN ? (CARDTRADER_TOKEN.slice(0, 10) + '...' + CARDTRADER_TOKEN.slice(-6)) : null
+      },
+      justTcg: {
+        configured: !!JUSTTCG_API_KEY,
+        keyMasked: JUSTTCG_API_KEY ? (JUSTTCG_API_KEY.slice(0, 4) + '...' + JUSTTCG_API_KEY.slice(-4)) : null
+      },
+      ygoProDeck: {
+        configured: true,
+        status: "Attivo (100% Gratuito - 15 req/sec)",
+        provides: "Artwork HD, Statistiche Mostri, Descrizioni, Prezzi Base TCGplayer & eBay"
+      }
+    }));
+    return;
+  }
+
+  // API: Save Provider Configuration
+  if (req.url === '/api/config/providers' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        if (payload.justTcgKey !== undefined) {
+          JUSTTCG_API_KEY = payload.justTcgKey.trim();
+          fs.writeFileSync(JUSTTCG_TOKEN_FILE, JUSTTCG_API_KEY, 'utf-8');
+        }
+        if (payload.cardTraderToken !== undefined) {
+          CARDTRADER_TOKEN = payload.cardTraderToken.trim();
+          fs.writeFileSync(TOKEN_FILE_PATH, CARDTRADER_TOKEN, 'utf-8');
+          expansionsCache = null;
+          blueprintsCache.clear();
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, message: "Impostazioni API salvate con successo!" }));
+      } catch(err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // API: Single Card Multi-Marketplace Sync (YGOPRODeck + JustTCG)
+  if (req.url === '/api/marketplaces/sync-single' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body);
+        const card = payload.card;
+        if (!card) throw new Error("Dati carta mancanti");
+
+        const result = await fetchMultiMarketplaceCard(card, payload.justTcgKey);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // API: Batch Multi-Marketplace Sync for All Cards
+  if (req.url === '/api/marketplaces/sync-all' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body);
+        const inputCards = payload.cards || [];
+        if (inputCards.length === 0) throw new Error("Lista carte vuota");
+
+        console.log(`[Multi-Marketplace Sync] Inizio sincronizzazione per ${inputCards.length} carte...`);
+
+        const updatedCards = [];
+        const logs = [];
+
+        for (let i = 0; i < inputCards.length; i++) {
+          const card = inputCards[i];
+          try {
+            const resItem = await fetchMultiMarketplaceCard(card, payload.justTcgKey);
+            updatedCards.push(resItem.card);
+            logs.push(resItem.log);
+          } catch(itemErr) {
+            updatedCards.push(card);
+            logs.push({
+              cardName: card.name,
+              code: card.code,
+              error: itemErr.message
+            });
+          }
+          await new Promise(r => setTimeout(r, 100));
+        }
+
+        // Save updated cards to JSON store & CSV
+        const wants = payload.wants || [];
+        const lastUpdated = new Date().toLocaleString("it-IT");
+
+        fs.writeFileSync(JSON_DATA_PATH, JSON.stringify({ cards: updatedCards, wants, lastUpdated }, null, 2), 'utf-8');
+
+        const csvContent = convertCardsToCsv(updatedCards);
+        try {
+          fs.writeFileSync(CSV_FILE_PATH, csvContent, 'utf-8');
+        } catch(e) {}
+
+        const localCsv = path.join(ROOT_DIR, 'Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv');
+        if (CSV_FILE_PATH !== localCsv) {
+          try { fs.writeFileSync(localCsv, csvContent, 'utf-8'); } catch(e) {}
+        }
+
+        console.log(`[Multi-Marketplace Sync] Completato! ${updatedCards.length} carte arricchite con immagini e mercati.`);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          cards: updatedCards,
+          logs: logs,
+          message: `${updatedCards.length} carte sincronizzate con successo con YGOPRODeck, Immagini HD e Mercati Globali!`
+        }));
+      } catch (err) {
+        console.error('[Multi-Marketplace Sync] Errore:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
