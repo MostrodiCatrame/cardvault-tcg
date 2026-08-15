@@ -541,6 +541,7 @@ function fetchYgoProDeck(card) {
               imageUrl: img.image_url_small || img.image_url || null,
               imageUrlLarge: img.image_url || null,
               imageUrlCropped: img.image_url_cropped || null,
+              ygoprodeckUrl: ygo.ygoprodeck_url || ('https://ygoprodeck.com/card/' + encodeURIComponent(ygo.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'))),
               cardType: ygo.type || '',
               race: ygo.race || '',
               attribute: ygo.attribute || '',
@@ -673,14 +674,20 @@ async function fetchMultiMarketplaceCard(card, justTcgKey) {
 
     logItem.sources.push('YGOPRODeck (Immagine HD & Dati)');
 
+    // Store YGOPRODeck canonical URL and metadata
+    if (ygoRes.ygoprodeckUrl) {
+      updated.ygoprodeckUrl = ygoRes.ygoprodeckUrl;
+    }
+    // Only update eBay price from generic floor IF the card is a low-value common/bulk card (< 3 EUR)
+    // to avoid overwriting high-value vintage/foil printings with 0.99$ generic reprint prices
     if (ygoRes.prices && ygoRes.prices.ebay > 0) {
       const ebEuro = parseFloat((ygoRes.prices.ebay * 0.92).toFixed(2));
-      if (ebEuro > 0 && Math.abs(ebEuro - (updated.ebMin || 0)) > 0.5) {
+      if (ebEuro > 0 && (!updated.ebMin || updated.ebMin <= 3.00)) {
         logItem.oldEbMin = updated.ebMin;
         logItem.newEbMin = ebEuro;
         updated.ebMin = ebEuro;
-        updated.ebTrend = parseFloat((ebEuro * 1.15).toFixed(2));
-        logItem.sources.push('eBay');
+        updated.ebTrend = parseFloat((ebEuro * 1.2).toFixed(2));
+        logItem.sources.push('eBay Base Floor');
       }
     }
   }

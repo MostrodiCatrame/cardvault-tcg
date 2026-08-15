@@ -344,6 +344,34 @@
     return "🌐";
   }
 
+  
+  function getCardUrls(card) {
+    const itaName = card.name || "";
+    const engName = card.englishName || card.name || "";
+    const code = card.code || "";
+    const cleanSlug = engName.toLowerCase().replace(/\s*\(v\.\d+\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+    return {
+      itaName,
+      engName,
+      code,
+      cmItaUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(itaName)}`,
+      cmCodeUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(code)}`,
+      cmEngUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(engName)}`,
+      cmBestUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(engName || itaName)}`,
+      
+      ctItaUrl: `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(itaName)}`,
+      ctCodeUrl: `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(code)}`,
+      ctEngUrl: `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(engName)}`,
+      ctBestUrl: `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(engName || itaName)}`,
+      
+      ebUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + code + ' ' + engName)}&LH_BIN=1`,
+      ebItaUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + code + ' ' + itaName)}&LH_BIN=1`,
+      
+      ygoUrl: card.ygoprodeckUrl || `https://ygoprodeck.com/card/${cleanSlug}`
+    };
+  }
+
   function formatEuro(val) {
     if (val === undefined || val === null || isNaN(val)) return "€ 0,00";
     return "€ " + Number(val).toLocaleString("it-IT", {
@@ -753,17 +781,18 @@
         trendBadgeHtml = `<span class="trend-badge stable">↔ Stabile</span>`;
       }
 
-      // Italian localized market search URLs
-      const itaName = card.name;
-      const engName = card.englishName || card.name;
-      const code = card.code;
-
-      const cmItaUrl = `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(itaName)}`;
-      const cmCodeUrl = `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(code)}`;
-      const cmEngUrl = `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(engName)}`;
-      const ctItaUrl = `https://www.cardtrader.com/it/search?query=${encodeURIComponent(itaName)}`;
-      const ctCodeUrl = `https://www.cardtrader.com/it/search?query=${encodeURIComponent(code)}`;
-      const ebUrl = `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + itaName + ' ' + code)}`;
+      const urls = getCardUrls(card);
+      const itaName = urls.itaName;
+      const engName = urls.engName;
+      const code = urls.code;
+      const cmItaUrl = urls.cmItaUrl;
+      const cmCodeUrl = urls.cmCodeUrl;
+      const cmEngUrl = urls.cmEngUrl;
+      const ctItaUrl = urls.ctItaUrl;
+      const ctCodeUrl = urls.ctCodeUrl;
+      const ctEngUrl = urls.ctEngUrl;
+      const ebUrl = urls.ebUrl;
+      const ygoUrl = urls.ygoUrl;
 
       // Platform trends
       const cmTrendInfo = getPlatformTrend(card.cmMin, card.cmTrend, card.baseCmTrend);
@@ -837,23 +866,23 @@
                 </svg>
               </button>
               <div class="market-dropdown-menu">
-                <a href="${cmItaUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${itaName}' su Cardmarket Italia">
-                  <span class="market-dot cm"></span> Cardmarket (Nome ITA)
-                </a>
-                <a href="${cmCodeUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code}' su Cardmarket Italia">
-                  <span class="market-dot cm"></span> Cardmarket (Codice Set)
-                </a>
-                <a href="${cmEngUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${engName}' su Cardmarket Italia">
+                <a href="${cmEngUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${engName}' su Cardmarket">
                   <span class="market-dot cm"></span> Cardmarket (Nome EN)
                 </a>
-                <a href="${ctItaUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${itaName}' su CardTrader Italia">
-                  <span class="market-dot ct"></span> CardTrader (Nome ITA)
+                <a href="${cmCodeUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code}' su Cardmarket">
+                  <span class="market-dot cm"></span> Cardmarket (Codice Set)
                 </a>
-                <a href="${ctCodeUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code}' su CardTrader Italia">
+                <a href="${ctEngUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${engName}' su CardTrader">
+                  <span class="market-dot ct"></span> CardTrader (Nome EN)
+                </a>
+                <a href="${ctCodeUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code}' su CardTrader">
                   <span class="market-dot ct"></span> CardTrader (Codice Set)
                 </a>
-                <a href="${ebUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca su eBay.it">
-                  <span class="market-dot eb"></span> eBay.it
+                <a href="${ebUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code} ${engName}' su eBay.it">
+                  <span class="market-dot eb"></span> eBay.it (Compralo Subito)
+                </a>
+                <a href="${ygoUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Vedi scheda ufficiale e tutti i set su YGOPRODeck">
+                  <span class="market-dot" style="background:#10b981;"></span> YGOPRODeck Hub
                 </a>
               </div>
             </div>
@@ -909,10 +938,12 @@
         trendBadgeHtml = `<span class="trend-badge stable">↔ Stabile</span>`;
       }
 
-      const itaName = card.name;
-      const cmUrl = `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(itaName)}`;
-      const ctUrl = `https://www.cardtrader.com/it/search?query=${encodeURIComponent(itaName)}`;
-      const ebUrl = `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + itaName + ' ' + card.code)}`;
+      const urls = getCardUrls(card);
+      const itaName = urls.itaName;
+      const cmUrl = urls.cmBestUrl;
+      const ctUrl = urls.ctBestUrl;
+      const ebUrl = urls.ebUrl;
+      const ygoUrl = urls.ygoUrl;
 
       const cmTrendInfo = getPlatformTrend(card.cmMin, card.cmTrend, card.baseCmTrend);
       const ctTrendInfo = getPlatformTrend(card.ctMin, card.ctTrend, card.baseCtTrend);
@@ -1858,14 +1889,20 @@
     }
 
     if (lightboxLinksRow) {
-      const itaName = card.name;
-      const cmUrl = `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(itaName)}`;
-      const ctUrl = `https://www.cardtrader.com/it/search?query=${encodeURIComponent(itaName)}`;
-      const ebUrl = `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + itaName + ' ' + (card.code || ''))}`;
+      const urls = getCardUrls(card);
       lightboxLinksRow.innerHTML = `
-        <a href="${cmUrl}" target="_blank" class="btn btn-secondary" style="flex:1; font-size:0.8rem;">Vedi su Cardmarket</a>
-        <a href="${ctUrl}" target="_blank" class="btn btn-secondary" style="flex:1; font-size:0.8rem;">Vedi su CardTrader</a>
-        <a href="${ebUrl}" target="_blank" class="btn btn-secondary" style="flex:1; font-size:0.8rem;">Vedi su eBay</a>
+        <a href="${urls.cmBestUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex:1; font-size:0.8rem;" title="Cerca su Cardmarket Italia">
+          <span style="color:#0284c7;">●</span> Cardmarket
+        </a>
+        <a href="${urls.ctBestUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex:1; font-size:0.8rem;" title="Cerca su CardTrader">
+          <span style="color:#f97316;">●</span> CardTrader
+        </a>
+        <a href="${urls.ebUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex:1; font-size:0.8rem;" title="Cerca su eBay.it Compralo Subito">
+          <span style="color:#eab308;">●</span> eBay.it
+        </a>
+        <a href="${urls.ygoUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex:1; font-size:0.8rem;" title="Vedi scheda completa e tutti i set su YGOPRODeck">
+          <span style="color:#10b981;">🃏</span> YGOPRODeck
+        </a>
       `;
     }
 
