@@ -2174,3 +2174,50 @@ body {
   position: relative;
   box-shadow: 0 6px 14px rgba(0,0,0,0.8);
 }
+
+/* JustTCG Monthly Quota Pill in Header */
+.justtcg-quota-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.76rem;
+  color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: fadeInPill 0.3s ease;
+}
+
+.justtcg-quota-pill.warning {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.justtcg-quota-pill.warning .jqp-text strong {
+  color: #fbbf24;
+}
+
+.justtcg-quota-pill.exceeded {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.justtcg-quota-pill.exceeded .jqp-text strong {
+  color: #f87171;
+}
+
+.jqp-badge {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+@keyframes fadeInPill {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

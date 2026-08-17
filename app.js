@@ -1841,6 +1841,7 @@
       savePortfolioData();
       populateFilterDropdowns();
       render();
+      await checkJustTcgQuota();
       showToast(`🎉 ${result.cards.length} carte sincronizzate con successo con YGOPRODeck e Mercati!`);
     } catch(err) {
       if (mpProgressStatusText) mpProgressStatusText.textContent = `❌ Errore: ${err.message}`;
@@ -1873,6 +1874,7 @@
         savePortfolioData();
         await syncPortfolioWithDiskCsv(true);
         render();
+        await checkJustTcgQuota();
         showToast(`✅ "${card.name}" aggiornata con successo!`);
       }
     } catch(err) {
@@ -1955,8 +1957,92 @@
   }
 
   // ==========================================
-  // API CONFIGURATION MODAL
+  // API CONFIGURATION & JUSTTCG QUOTA MONITOR
   // ==========================================
+  async function checkJustTcgQuota() {
+    try {
+      const res = await fetch("/api/justtcg/usage", { headers: getAuthHeaders() });
+      if (res.ok) {
+        const usage = await res.json();
+        updateJustTcgQuotaUi(usage);
+      }
+    } catch(e) {}
+  }
+
+  function updateJustTcgQuotaUi(usage) {
+    if (!usage) return;
+    const pill = document.getElementById("justtcg-quota-pill");
+    const pillRemaining = document.getElementById("jqp-remaining");
+    const pillBadge = document.getElementById("jqp-badge");
+
+    // Header Quota Pill: appears automatically when count >= 500
+    if (pill) {
+      if (usage.configured && (usage.count >= usage.warningThreshold || usage.isWarning)) {
+        pill.style.display = "flex";
+        if (pillRemaining) pillRemaining.textContent = `${usage.remaining}`;
+        if (pillBadge) pillBadge.textContent = `${usage.count} / ${usage.monthlyLimit}`;
+        pill.classList.remove("warning", "exceeded");
+        if (usage.isExceeded) {
+          pill.classList.add("exceeded");
+          pill.title = `⚠️ Limite mensile JustTCG raggiunto (${usage.count}/${usage.monthlyLimit}). Reset il ${usage.nextResetDate}`;
+        } else {
+          pill.classList.add("warning");
+          pill.title = `⚠️ Superata la soglia di 500 chiamate JustTCG. Rimaste: ${usage.remaining} (Reset il ${usage.nextResetDate})`;
+        }
+      } else {
+        pill.style.display = "none";
+      }
+    }
+
+    // Modal JustTCG Quota Box
+    const countText = document.getElementById("justtcg-quota-count-text");
+    const fillBar = document.getElementById("justtcg-progress-fill");
+    const remText = document.getElementById("justtcg-quota-remaining-text");
+    const resetText = document.getElementById("justtcg-quota-reset-text");
+    const warningBanner = document.getElementById("justtcg-quota-warning-banner");
+    const statusBadge = document.getElementById("status-justtcg-badge");
+
+    if (statusBadge) {
+      if (usage.configured) {
+        statusBadge.textContent = "Attivo";
+        statusBadge.className = "badge-status-ok";
+      } else {
+        statusBadge.textContent = "Opzionale";
+        statusBadge.className = "badge-status-opt";
+      }
+    }
+
+    const pct = Math.min(100, Math.round((usage.count / usage.monthlyLimit) * 100));
+    if (countText) countText.textContent = `${usage.count} / ${usage.monthlyLimit} usate (${pct}%)`;
+    if (remText) remText.textContent = `${usage.remaining}`;
+    if (resetText) resetText.textContent = `Prossimo azzeramento: ${usage.nextResetDate} (${usage.daysUntilReset} gg)`;
+
+    if (fillBar) {
+      fillBar.style.width = `${pct}%`;
+      if (pct >= 95) fillBar.style.background = "#ef4444";
+      else if (pct >= 50) fillBar.style.background = "#f59e0b";
+      else fillBar.style.background = "#10b981";
+    }
+
+    if (warningBanner) {
+      if (usage.isExceeded) {
+        warningBanner.style.display = "block";
+        warningBanner.style.background = "rgba(239, 68, 68, 0.15)";
+        warningBanner.style.borderColor = "rgba(239, 68, 68, 0.3)";
+        warningBanner.style.color = "#f87171";
+        warningBanner.innerHTML = `⛔ <strong>Limite mensile di 1.000 chiamate raggiunto!</strong> Le interrogazioni automatiche a JustTCG sono sospese fino al <strong>${usage.nextResetDate}</strong> per proteggere il tuo account.`;
+      } else if (usage.isWarning) {
+        warningBanner.style.display = "block";
+        warningBanner.style.background = "rgba(245, 158, 11, 0.15)";
+        warningBanner.style.borderColor = "rgba(245, 158, 11, 0.3)";
+        warningBanner.style.color = "#fbbf24";
+        warningBanner.innerHTML = `⚠️ <strong>Superata la soglia di 500 chiamate (${usage.count}/1.000).</strong> Rimangono <strong>${usage.remaining} richieste</strong> disponibili fino al <strong>${usage.nextResetDate}</strong>.`;
+      } else {
+        warningBanner.style.display = "none";
+      }
+    }
+  }
+
   async function openApiConfigModal() {
     if (!apiConfigModal) return;
     try {
@@ -1968,6 +2054,9 @@
         }
         if (inputJusttcgKey && config.justTcg && config.justTcg.keyMasked) {
           inputJusttcgKey.placeholder = `Attivo: ${config.justTcg.keyMasked}`;
+        }
+        if (config.justTcg && config.justTcg.usage) {
+          updateJustTcgQuotaUi(config.justTcg.usage);
         }
       }
     } catch(e) {}
@@ -2001,6 +2090,7 @@
       if (data.success) {
         showToast("✅ Impostazioni API salvate con successo!");
         closeApiConfigModal();
+        await checkJustTcgQuota();
       } else {
         alert("Errore salvataggio: " + (data.error || "Impossibile salvare"));
       }
@@ -2869,6 +2959,7 @@
     init();
     init2FAEvents();
     check2FAStatus();
+    checkJustTcgQuota();
   }
 
   if (document.readyState === "loading") {

@@ -25,6 +25,7 @@ let CARDTRADER_TOKEN = process.env.CARDTRADER_TOKEN || 'eyJhbGciOiJSUzI1NiJ9.eyJ
 
 // Load saved token if exists
 const JUSTTCG_TOKEN_FILE = path.join(ROOT_DIR, '.justtcg_token');
+const JUSTTCG_USAGE_FILE = path.join(ROOT_DIR, '.justtcg_usage.json');
 let JUSTTCG_API_KEY = process.env.JUSTTCG_API_KEY || '';
 
 if (fs.existsSync(JUSTTCG_TOKEN_FILE)) {
@@ -39,6 +40,86 @@ if (fs.existsSync(TOKEN_FILE_PATH)) {
     const saved = fs.readFileSync(TOKEN_FILE_PATH, 'utf-8').trim();
     if (saved) CARDTRADER_TOKEN = saved;
   } catch (e) {}
+}
+
+// ==========================================
+// JUSTTCG MONTHLY QUOTA TRACKER (1.000 Req/Mese)
+// ==========================================
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function getNextResetDateStr() {
+  const now = new Date();
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return nextMonth.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function getDaysUntilReset() {
+  const now = new Date();
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const diffTime = nextMonth - now;
+  return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+}
+
+function loadJustTcgUsage() {
+  const monthKey = getCurrentMonthKey();
+  let usage = {
+    currentMonth: monthKey,
+    count: 0,
+    monthlyLimit: 1000,
+    warningThreshold: 500,
+    lastReset: new Date().toISOString()
+  };
+
+  if (fs.existsSync(JUSTTCG_USAGE_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(JUSTTCG_USAGE_FILE, 'utf-8'));
+      if (data && data.currentMonth === monthKey) {
+        usage = { ...usage, ...data };
+      } else {
+        // Nuovo mese solare! Reset automatico del contatore
+        usage.currentMonth = monthKey;
+        usage.count = 0;
+        usage.lastReset = new Date().toISOString();
+        saveJustTcgUsage(usage);
+      }
+    } catch (e) {}
+  }
+  return usage;
+}
+
+function saveJustTcgUsage(usage) {
+  try {
+    fs.writeFileSync(JUSTTCG_USAGE_FILE, JSON.stringify(usage, null, 2), 'utf-8');
+  } catch (e) {}
+}
+
+function recordJustTcgCall() {
+  const usage = loadJustTcgUsage();
+  usage.count += 1;
+  saveJustTcgUsage(usage);
+  return usage;
+}
+
+function getJustTcgUsageStats() {
+  const usage = loadJustTcgUsage();
+  const remaining = Math.max(0, usage.monthlyLimit - usage.count);
+  const isWarning = usage.count >= usage.warningThreshold;
+  const isExceeded = usage.count >= usage.monthlyLimit;
+  return {
+    configured: !!JUSTTCG_API_KEY,
+    currentMonth: usage.currentMonth,
+    count: usage.count,
+    monthlyLimit: usage.monthlyLimit,
+    remaining: remaining,
+    warningThreshold: usage.warningThreshold,
+    isWarning: isWarning,
+    isExceeded: isExceeded,
+    nextResetDate: getNextResetDateStr(),
+    daysUntilReset: getDaysUntilReset()
+  };
 }
 
 // ==========================================
@@ -709,7 +790,7 @@ function fetchYgoProDeck(card) {
   });
 }
 
-// JustTCG API Request Helper
+// JustTCG API Request Helper with Monthly Quota Tracking (1000 Calls/Month)
 function fetchJustTcgPrice(card, apiKey) {
   return new Promise((resolve) => {
     const key = apiKey || JUSTTCG_API_KEY;
@@ -717,9 +798,22 @@ function fetchJustTcgPrice(card, apiKey) {
       return resolve({ success: false, reason: 'Nessuna API Key JustTCG configurata' });
     }
 
-    const cardCode = card.code || '';
+    const usage = loadJustTcgUsage();
+    if (usage.count >= usage.monthlyLimit) {
+      return resolve({
+        success: false,
+        quotaExceeded: true,
+        reason: `Limite mensile JustTCG raggiunto (${usage.count}/${usage.monthlyLimit} richieste). Riprova dopo il ${getNextResetDateStr()}.`
+      });
+    }
+
+    // Registra la chiamata API nel contatore mensile
+    recordJustTcgCall();
+
+    const cardCode = (card.code || '').toUpperCase().trim();
     const cardName = card.englishName || card.name;
-    const url = `https://api.justtcg.com/v1/cards/search?query=${encodeURIComponent(cardCode || cardName)}&game=yugioh`;
+    const cleanName = cleanCardNameForYgo(cardName);
+    const url = `https://api.justtcg.com/v1/cards?q=${encodeURIComponent(cleanName)}&game=yugioh`;
 
     const req = https.get(url, {
       headers: {
@@ -732,18 +826,54 @@ function fetchJustTcgPrice(card, apiKey) {
       res.on('end', () => {
         try {
           const j = JSON.parse(d);
-          if (j.data && j.data.length > 0) {
-            const item = j.data[0];
-            resolve({
-              success: true,
-              cmMin: item.cardmarket_min_price || item.cardmarket_price,
-              cmTrend: item.cardmarket_trend_price || item.cardmarket_avg,
-              tcgMin: item.tcgplayer_min_price,
-              tcgTrend: item.tcgplayer_market_price
-            });
-          } else {
-            resolve({ success: false, reason: 'Nessun risultato da JustTCG' });
+          if (j.data && Array.isArray(j.data) && j.data.length > 0) {
+            const cardRarity = (card.rarity || '').toLowerCase().trim();
+
+            // 1. Cerca corrispondenza esatta per codice carta (es. SOI-EN001 o STOR-EN040)
+            let match = null;
+            if (cardCode) {
+              const baseCode = cardCode.replace(/-IT/i, '-EN');
+              match = j.data.find(item => item.number && (
+                item.number.toUpperCase() === cardCode ||
+                item.number.toUpperCase() === baseCode ||
+                cardCode.includes(item.number.toUpperCase()) ||
+                item.number.toUpperCase().includes(baseCode)
+              ));
+            }
+
+            // 2. Fallback: Corrispondenza per rarità
+            if (!match && cardRarity) {
+              match = j.data.find(item => item.rarity && item.rarity.toLowerCase().includes(cardRarity));
+            }
+
+            // 3. Fallback: Primo risultato
+            if (!match) {
+              match = j.data[0];
+            }
+
+            if (match && match.variants && match.variants.length > 0) {
+              // Isola la variante Near Mint / Lightly Played
+              const nmVar = match.variants.find(v => v.condition === 'Near Mint' || v.condition === 'Lightly Played') || match.variants[0];
+              const priceUsd = nmVar.price || 0;
+              const priceEuro = priceUsd > 0 ? parseFloat((priceUsd * 0.92).toFixed(2)) : 0;
+              const trendEuro = priceEuro > 0 ? parseFloat((priceEuro * 1.15).toFixed(2)) : 0;
+
+              const stats = getJustTcgUsageStats();
+              resolve({
+                success: true,
+                cardName: match.name,
+                setNumber: match.number,
+                rarity: match.rarity,
+                cmMin: priceEuro,
+                cmTrend: trendEuro,
+                tcgMin: priceUsd,
+                tcgTrend: parseFloat((priceUsd * 1.15).toFixed(2)),
+                usage: stats
+              });
+              return;
+            }
           }
+          resolve({ success: false, reason: 'Nessun prezzo valido trovato da JustTCG' });
         } catch(e) {
           resolve({ success: false, reason: e.message });
         }
@@ -1068,7 +1198,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-    // API: Providers Configuration Status
+  // API: JustTCG Monthly Quota Usage & Warning Stats
+  if (req.url === '/api/justtcg/usage' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(getJustTcgUsageStats()));
+    return;
+  }
+
+  // API: Providers Configuration Status
   if (req.url === '/api/config/providers' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
@@ -1078,7 +1215,8 @@ const server = http.createServer(async (req, res) => {
       },
       justTcg: {
         configured: !!JUSTTCG_API_KEY,
-        keyMasked: JUSTTCG_API_KEY ? (JUSTTCG_API_KEY.slice(0, 4) + '...' + JUSTTCG_API_KEY.slice(-4)) : null
+        keyMasked: JUSTTCG_API_KEY ? (JUSTTCG_API_KEY.slice(0, 4) + '...' + JUSTTCG_API_KEY.slice(-4)) : null,
+        usage: getJustTcgUsageStats()
       },
       ygoProDeck: {
         configured: true,

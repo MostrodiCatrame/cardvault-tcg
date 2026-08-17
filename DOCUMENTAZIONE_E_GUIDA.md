@@ -129,12 +129,14 @@ Tutte le operazioni effettuate nell'app vengono scritte in tempo reale nel file:
 
 | File | Scopo e Contenuto |
 | :--- | :--- |
-| **`server.js`** | Server HTTP Node.js. Gestisce sync CSV, CardTrader API v2 a blueprint, YGOPRODeck, JustTCG e 2FA TOTP. |
-| **`index.html`** | Struttura dell'interfaccia: pulsanti dedicati CardTrader e Mercati Globali, modali API, Lightbox HD e 2FA. |
-| **`style.css`** | Design System Dark Luxury (Outfit + Plus Jakarta Sans), palette HSL, Collector Grid, Lightbox ed effetti foil. |
-| **`app.js`** | Motore frontend: gestione collezione, calcolo medie, filtri, eventi, modali e chiamate API. |
+| **`server.js`** | Server HTTP Node.js. Gestisce sync CSV, CardTrader API v2 a blueprint con filtro ITA/NM, YGOPRODeck, JustTCG API con quota tracker mensile e 2FA TOTP. |
+| **`index.html`** | Struttura dell'interfaccia: pulsanti dedicati CardTrader e Mercati Globali, pillola contatore quota JustTCG, modali API, Lightbox HD e 2FA. |
+| **`style.css`** | Design System Dark Luxury (Outfit + Plus Jakarta Sans), palette HSL, Collector Grid, Lightbox, dropup automatici e monitor quota. |
+| **`app.js`** | Motore frontend: gestione collezione, calcolo medie, filtri, eventi, modali, monitor quota JustTCG e chiamate API. |
 | **`cards-data.js`** | Database iniziale master con le **36 carte certificate** (Blueprint CT + Artwork YGOPRODeck). |
 | **`data_portfolio.json`** | Archivio dati JSON persistente letto e scritto dal server. |
+| **`.justtcg_token`** | File protetto con l'API Key JustTCG dell'utente (`tcg_f052...`). |
+| **`.justtcg_usage.json`** | Monitoraggio persistente delle chiamate mensili JustTCG (limite 1.000, soglia alert 500, reset mensile automatico). |
 | **`Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv`** | File CSV master collegato su disco. |
 | **`CardVault_TCG.bat`** | File di avvio rapido per Windows. |
 
