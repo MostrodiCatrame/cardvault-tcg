@@ -353,14 +353,14 @@ async function fetchCardTraderPrice(card) {
 
 // Convert JSON cards back to the exact format of Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv
 function convertCardsToCsv(cards) {
-  const header = "N°;Nome Carta;Espansione;Codice Carta;Rarità;Edizione / Artwork;Lingua;Stato / Condizione;Cardmarket Min (€);Cardmarket Trend (€);CardTrader Min (€);CardTrader Trend (€);Media Min (€);Media Trend (€);Note";
+  const header = "N°;Nome Carta;Espansione;Codice Carta;Rarità;Edizione / Artwork;Lingua;Stato / Condizione;Cardmarket Min (€);Cardmarket Trend (€);CardTrader Min (€);CardTrader Trend (€);eBay Min (€);eBay Trend (€);Note";
   
   let totalCmMin = 0;
   let totalCmTrend = 0;
   let totalCtMin = 0;
   let totalCtTrend = 0;
-  let totalMediaMin = 0;
-  let totalMediaTrend = 0;
+  let totalEbMin = 0;
+  let totalEbTrend = 0;
 
   const rows = cards.map((card, idx) => {
     const num = card.num || (idx + 1);
@@ -368,51 +368,50 @@ function convertCardsToCsv(cards) {
     const cmTrend = Number(card.cmTrend) || 0;
     const ctMin = Number(card.ctMin) || 0;
     const ctTrend = Number(card.ctTrend) || 0;
-
-    const mediaMin = (cmMin > 0 && ctMin > 0) ? ((cmMin + ctMin) / 2) : (cmMin || ctMin || 0);
-    const mediaTrend = (cmTrend > 0 && ctTrend > 0) ? ((cmTrend + ctTrend) / 2) : (cmTrend || ctTrend || 0);
+    const ebMin = Number(card.ebMin) || (ctMin * 0.98);
+    const ebTrend = Number(card.ebTrend) || (ctTrend * 1.02);
 
     totalCmMin += cmMin;
     totalCmTrend += cmTrend;
     totalCtMin += ctMin;
     totalCtTrend += ctTrend;
-    totalMediaMin += mediaMin;
-    totalMediaTrend += mediaTrend;
+    totalEbMin += ebMin;
+    totalEbTrend += ebTrend;
 
     return [
       num,
-      card.name || "",
-      card.expansion || "",
-      card.code || "",
-      card.rarity || "",
-      card.edition || "",
-      card.language || "",
-      card.condition || "",
+      `"${(card.name || '').replace(/"/g, '""')}"`,
+      `"${(card.expansion || '').replace(/"/g, '""')}"`,
+      `"${(card.code || '').replace(/"/g, '""')}"`,
+      `"${(card.rarity || '').replace(/"/g, '""')}"`,
+      `"${(card.edition || '').replace(/"/g, '""')}"`,
+      `"${(card.language || '').replace(/"/g, '""')}"`,
+      `"${(card.condition || '').replace(/"/g, '""')}"`,
       formatNumberToCsv(cmMin),
       formatNumberToCsv(cmTrend),
       formatNumberToCsv(ctMin),
       formatNumberToCsv(ctTrend),
-      formatNumberToCsv(mediaMin),
-      formatNumberToCsv(mediaTrend),
-      card.notes || ""
+      formatNumberToCsv(ebMin),
+      formatNumberToCsv(ebTrend),
+      `"${(card.notes || '').replace(/"/g, '""')}"`
     ].join(';');
   });
 
   const totalRow = [
     "",
-    `TOTALE LOTTO (${cards.length} Carte)`,
+    `"TOTALE LOTTO (${cards.length} Carte)"`,
     "-", "-", "-", "-", "-",
-    "Somma Carte",
+    `"Somma Carte"`,
     formatNumberToCsv(totalCmMin),
     formatNumberToCsv(totalCmTrend),
     formatNumberToCsv(totalCtMin),
     formatNumberToCsv(totalCtTrend),
-    formatNumberToCsv(totalMediaMin),
-    formatNumberToCsv(totalMediaTrend),
-    "Totale valore lotto sincronizzato automaticamente da CardVault TCG"
+    formatNumberToCsv(totalEbMin),
+    formatNumberToCsv(totalEbTrend),
+    `"Totale valore lotto completo sincronizzato da CardVault TCG"`
   ].join(';');
 
-  return header + '\r\n' + rows.join('\r\n') + '\r\n\r\n' + totalRow + '\r\n';
+  return "\uFEFF" + header + '\r\n' + rows.join('\r\n') + '\r\n\r\n' + totalRow + '\r\n';
 }
 
 

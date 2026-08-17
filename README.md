@@ -1,33 +1,34 @@
-# 🃏 CardVault TCG - Yu-Gi-Oh! Portfolio & Wants Tracker
+# 🃏 CardVault TCG - Yu-Gi-Oh! Portfolio & Market Monitor
 
-Applicazione web professionale per il monitoraggio, calcolo del valore e tracciamento in tempo reale di carte collezionabili **Yu-Gi-Oh!** con integrazione ufficiale **CardTrader API v2**, **Cardmarket** ed **eBay**.
-
----
-
-## ⚡ Caratteristiche Principali
-
-- **Live Market Sync**: Sincronizzazione automatica e autenticata con le API v2 di CardTrader per estrarre in tempo reale prezzi minimi, trend di vendita e numero di inserzioni attive.
-- **Micro-Trend Multi-Piattaforma**: Indicatori visuali di tendenza (`↗` Rialzo, `↘` Calo, `↔` Stabile) calcolati singolarmente per ogni mercato (Cardmarket, CardTrader, eBay).
-- **Gestione Portfolio & Wants**: Monitoraggio delle carte possedute e gestione della Wishlist con calcolo automatico della convenienza d'acquisto (*Affari sotto il target budget*).
-- **Ricerche Localizzate in Italiano (`/it/`)**: Collegamenti rapidi a Cardmarket IT, CardTrader IT ed eBay.it per nome carta, codice set e nome inglese.
-- **Sincronizzazione Bidirezionale CSV**: Salvataggio automatico continuo e supporto per import/export del file `Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv`.
+Applicazione web professionale e dashboard finanziaria per il tracciamento, monitoraggio delle quotazioni in tempo reale e gestione della collezione di carte collezionabili **Yu-Gi-Oh!**.
 
 ---
 
-## 🚀 Avvio Locale
+## ✨ Funzionalità Principali
 
-```bash
-# Avvia il server locale
-npm start
-```
-
-Apri nel browser: `http://localhost:3000`
+- ⚡ **CardTrader API v2 & Blueprints Certificati**: Integrazione ufficiale con le API di CardTrader tramite Blueprint ID univoci per prezzi minimi reali ed estrazione istantanea delle copie in vendita.
+- 🃏 **YGOPRODeck HD Artworks & Metadati**: Download automatico degli artwork ufficiali in HD, tipo mostro, statistiche e testi completi degli effetti.
+- 🌐 **Multi-Marketplace Sync**: Monitoraggio coordinato su **Cardmarket** (tramite JustTCG per superare blocchi Cloudflare), **CardTrader** ed **eBay.it**.
+- 🖼️ **Collector Grid & Lightbox Ingrandito**: Visualizzazione a schede con effetto olografico (*foil*) e modale Lightbox per visualizzare la carta e la descrizione dell'effetto a schermo intero.
+- 🎯 **Wants & Deal Finder**: Tracciamento delle carte desiderate con budget target e notifiche visive di convenienza.
+- 🔒 **Sicurezza 2FA TOTP**: Protezione a due fattori con password cifrata (PBKDF2) e codici a 6 cifre compatibili con Google/Microsoft Authenticator.
+- 💾 **Sincronizzazione CSV Locale**: Scrittura e lettura trasparente del file `Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv`.
 
 ---
 
-## ☁️ Deploy su Render.com
+## 🚀 Avvio Rapido
 
-1. Crea un nuovo repository su GitHub e carica questi file.
-2. Vai su [render.com](https://render.com) e accedi con GitHub.
-3. Seleziona **New + > Web Service** e scegli questo repository.
-4. Render rileverà automaticamente `package.json` ed eseguirà il deploy in 1 minuto.
+### In Locale (Windows)
+1. Fai doppio clic su `CardVault_TCG.bat` (oppure esegui `npm start`).
+2. Apri `http://localhost:3000` nel browser.
+
+### Su Cloud / Render.com
+1. Carica il repository su GitHub collegato al tuo account Render.
+2. Render eseguirà il deploy automatico in modalità zero-config tramite `render.yaml`.
+
+---
+
+## 📑 Documentazione Completa & Roadmap
+
+Per la guida dettagliata all'architettura, all'uso delle API e alla **Roadmap di sviluppo (inclusa la revisione della logica di inserimento nuove carte)**, consulta:
+👉 **[DOCUMENTAZIONE_E_GUIDA.md](DOCUMENTAZIONE_E_GUIDA.md)**
