@@ -1631,7 +1631,30 @@
 
     // Global Delegated Handler
     document.addEventListener("click", (e) => {
-      
+      // Market links dropdown toggle
+      const mktDropdownBtn = e.target.closest(".market-links-dropdown > button");
+      if (mktDropdownBtn) {
+        e.stopPropagation();
+        const parentDropdown = mktDropdownBtn.closest(".market-links-dropdown");
+        const wasOpen = parentDropdown.classList.contains("is-open");
+        document.querySelectorAll(".market-links-dropdown.is-open").forEach(d => d.classList.remove("is-open"));
+        if (!wasOpen) {
+          const rect = parentDropdown.getBoundingClientRect();
+          if (rect.bottom + 240 > window.innerHeight && rect.top > 200) {
+            parentDropdown.classList.add("dropup");
+          } else {
+            parentDropdown.classList.remove("dropup");
+          }
+          parentDropdown.classList.add("is-open");
+        }
+        return;
+      }
+
+      // Close dropdowns on outside click
+      if (!e.target.closest(".market-links-dropdown")) {
+        document.querySelectorAll(".market-links-dropdown.is-open").forEach(d => d.classList.remove("is-open"));
+      }
+
       const mpSingleBtn = e.target.closest(".btn-marketplaces-single");
       if (mpSingleBtn) {
         syncSingleMarketplaces(Number(mpSingleBtn.dataset.id));
@@ -1684,6 +1707,19 @@
       if (buyBtn) {
         convertWantToPortfolio(Number(buyBtn.dataset.id));
         return;
+      }
+    });
+
+    // Dynamic dropdown direction on hover
+    document.addEventListener("mouseover", (e) => {
+      const dropdown = e.target.closest(".market-links-dropdown");
+      if (dropdown) {
+        const rect = dropdown.getBoundingClientRect();
+        if (rect.bottom + 240 > window.innerHeight && rect.top > 200) {
+          dropdown.classList.add("dropup");
+        } else if (rect.bottom + 240 <= window.innerHeight) {
+          dropdown.classList.remove("dropup");
+        }
       }
     });
 
