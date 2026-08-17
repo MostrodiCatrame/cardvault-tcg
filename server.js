@@ -103,13 +103,33 @@ function recordJustTcgCall() {
   return usage;
 }
 
+function getJustTcgApiKey(explicitKey) {
+  if (explicitKey && typeof explicitKey === 'string' && explicitKey.trim()) {
+    return explicitKey.trim();
+  }
+  if (JUSTTCG_API_KEY && JUSTTCG_API_KEY.trim()) {
+    return JUSTTCG_API_KEY.trim();
+  }
+  if (fs.existsSync(JUSTTCG_TOKEN_FILE)) {
+    try {
+      const saved = fs.readFileSync(JUSTTCG_TOKEN_FILE, 'utf-8').trim();
+      if (saved) {
+        JUSTTCG_API_KEY = saved;
+        return saved;
+      }
+    } catch (e) {}
+  }
+  return '';
+}
+
 function getJustTcgUsageStats() {
   const usage = loadJustTcgUsage();
+  const key = getJustTcgApiKey();
   const remaining = Math.max(0, usage.monthlyLimit - usage.count);
   const isWarning = usage.count >= usage.warningThreshold;
   const isExceeded = usage.count >= usage.monthlyLimit;
   return {
-    configured: !!JUSTTCG_API_KEY,
+    configured: !!key,
     currentMonth: usage.currentMonth,
     count: usage.count,
     monthlyLimit: usage.monthlyLimit,
@@ -581,6 +601,70 @@ function convertCardsToCsv(cards) {
   return "\uFEFF" + header + '\r\n' + rows.join('\r\n') + '\r\n\r\n' + totalRow + '\r\n';
 }
 
+// Centralized atomic persistence to data_portfolio.json, cards-data.js and CSV files
+function saveAllStores(cards, wants, lastUpdated) {
+  const ts = lastUpdated || new Date().toLocaleString("it-IT");
+  
+  // If wants not passed, preserve existing
+  let finalWants = wants;
+  if (!finalWants) {
+    try {
+      const existing = getStoredPortfolio();
+      finalWants = existing.wants || [];
+    } catch(e) {
+      finalWants = [];
+    }
+  }
+
+  const portfolioData = {
+    cards: cards || [],
+    wants: finalWants || [],
+    lastUpdated: ts
+  };
+
+  // 1. Write data_portfolio.json
+  try {
+    fs.writeFileSync(JSON_DATA_PATH, JSON.stringify(portfolioData, null, 2), 'utf-8');
+  } catch(e) {
+    console.error('[saveAllStores] Errore scrittura JSON:', e.message);
+  }
+
+  // 2. Write cards-data.js
+  try {
+    const cardsDataContent = `// CardVault TCG Master Collection (36 Carte con Blueprint Certificati CardTrader & YGOPRODeck)
+const DEFAULT_CARDS = ${JSON.stringify(portfolioData.cards, null, 2)};
+
+const DEFAULT_WANTS = ${JSON.stringify(portfolioData.wants, null, 2)};
+
+if (typeof module !== 'undefined') {
+  module.exports = { DEFAULT_CARDS, DEFAULT_WANTS };
+}
+`;
+    const cardsDataPath = path.join(ROOT_DIR, 'cards-data.js');
+    fs.writeFileSync(cardsDataPath, cardsDataContent, 'utf-8');
+  } catch(e) {
+    console.error('[saveAllStores] Errore scrittura cards-data.js:', e.message);
+  }
+
+  // 3. Write CSV to project folder and Desktop
+  if (cards && cards.length > 0) {
+    const csvContent = convertCardsToCsv(cards);
+    try {
+      fs.writeFileSync(CSV_FILE_PATH, csvContent, 'utf-8');
+    } catch (e) {}
+
+    const localCsv = path.join(ROOT_DIR, 'Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv');
+    if (CSV_FILE_PATH !== localCsv) {
+      try {
+        fs.writeFileSync(localCsv, csvContent, 'utf-8');
+      } catch (e) {}
+    }
+  }
+
+  console.log(`[Auto-Save Disk] Salvataggio completato: ${portfolioData.cards.length} carte e ${portfolioData.wants.length} wants persistiti su JSON, CSV e cards-data.js.`);
+  return portfolioData;
+}
+
 
 // Parse raw CSV string to card array
 function parseCsvCards(csvText) {
@@ -793,7 +877,7 @@ function fetchYgoProDeck(card) {
 // JustTCG API Request Helper with Monthly Quota Tracking (1000 Calls/Month)
 function fetchJustTcgPrice(card, apiKey) {
   return new Promise((resolve) => {
-    const key = apiKey || JUSTTCG_API_KEY;
+    const key = getJustTcgApiKey(apiKey);
     if (!key) {
       return resolve({ success: false, reason: 'Nessuna API Key JustTCG configurata' });
     }
@@ -814,6 +898,8 @@ function fetchJustTcgPrice(card, apiKey) {
     const cardName = card.englishName || card.name;
     const cleanName = cleanCardNameForYgo(cardName);
     const url = `https://api.justtcg.com/v1/cards?q=${encodeURIComponent(cleanName)}&game=yugioh`;
+
+    console.log(`[JustTCG API Call #${usage.count + 1}] Ricerca: "${cleanName}" (${cardCode})`);
 
     const req = https.get(url, {
       headers: {
@@ -859,6 +945,7 @@ function fetchJustTcgPrice(card, apiKey) {
               const trendEuro = priceEuro > 0 ? parseFloat((priceEuro * 1.15).toFixed(2)) : 0;
 
               const stats = getJustTcgUsageStats();
+              console.log(`[JustTCG Result] Trovata "${match.name}" (${match.number || match.rarity}) -> USD $${priceUsd} = EUR €${priceEuro}`);
               resolve({
                 success: true,
                 cardName: match.name,
@@ -873,14 +960,19 @@ function fetchJustTcgPrice(card, apiKey) {
               return;
             }
           }
+          console.log(`[JustTCG] Nessun prezzo trovato per "${cleanName}"`);
           resolve({ success: false, reason: 'Nessun prezzo valido trovato da JustTCG' });
         } catch(e) {
+          console.error('[JustTCG Parse Error]', e.message);
           resolve({ success: false, reason: e.message });
         }
       });
     });
 
-    req.on('error', e => resolve({ success: false, reason: e.message }));
+    req.on('error', e => {
+      console.error('[JustTCG Network Error]', e.message);
+      resolve({ success: false, reason: e.message });
+    });
     req.setTimeout(8000, () => {
       req.destroy();
       resolve({ success: false, reason: 'Timeout richiesta JustTCG' });
@@ -931,7 +1023,7 @@ async function fetchMultiMarketplaceCard(card, justTcgKey) {
   }
 
   // Try JustTCG if configured
-  const key = justTcgKey || JUSTTCG_API_KEY;
+  const key = getJustTcgApiKey(justTcgKey);
   if (key) {
     const justRes = await fetchJustTcgPrice(card, key);
     if (justRes.success) {
@@ -1265,6 +1357,15 @@ const server = http.createServer(async (req, res) => {
         if (!card) throw new Error("Dati carta mancanti");
 
         const result = await fetchMultiMarketplaceCard(card, payload.justTcgKey);
+
+        // Auto-save updated card immediately to all stores on disk
+        const currentData = getStoredPortfolio();
+        const cardIdx = (currentData.cards || []).findIndex(c => c.id === card.id || c.num === card.num);
+        if (cardIdx !== -1) {
+          currentData.cards[cardIdx] = result.card;
+          saveAllStores(currentData.cards, currentData.wants, new Date().toLocaleString("it-IT"));
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
       } catch (err) {
@@ -1307,21 +1408,10 @@ const server = http.createServer(async (req, res) => {
           await new Promise(r => setTimeout(r, 100));
         }
 
-        // Save updated cards to JSON store & CSV
+        // Save updated cards to all disk stores immediately
         const wants = payload.wants || [];
         const lastUpdated = new Date().toLocaleString("it-IT");
-
-        fs.writeFileSync(JSON_DATA_PATH, JSON.stringify({ cards: updatedCards, wants, lastUpdated }, null, 2), 'utf-8');
-
-        const csvContent = convertCardsToCsv(updatedCards);
-        try {
-          fs.writeFileSync(CSV_FILE_PATH, csvContent, 'utf-8');
-        } catch(e) {}
-
-        const localCsv = path.join(ROOT_DIR, 'Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv');
-        if (CSV_FILE_PATH !== localCsv) {
-          try { fs.writeFileSync(localCsv, csvContent, 'utf-8'); } catch(e) {}
-        }
+        saveAllStores(updatedCards, wants, lastUpdated);
 
         console.log(`[Multi-Marketplace Sync] Completato! ${updatedCards.length} carte arricchite con immagini e mercati.`);
 
@@ -1402,16 +1492,19 @@ const server = http.createServer(async (req, res) => {
           await new Promise(r => setTimeout(r, 100));
         }
 
-        const csvContent = convertCardsToCsv(updatedCards);
-        fs.writeFileSync(CSV_FILE_PATH, csvContent, 'utf-8');
-        console.log(`[CardTrader Live Sync] Completato con successo! File CSV aggiornato.`);
+        // Save updated cards to all disk stores immediately
+        const wants = payload.wants || [];
+        const lastUpdated = new Date().toLocaleString("it-IT");
+        saveAllStores(updatedCards, wants, lastUpdated);
+
+        console.log(`[CardTrader Live Sync] Completato con successo! File CSV e database aggiornati.`);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: true,
           cards: updatedCards,
           logs: logs,
-          message: `${updatedCards.length} carte sincronizzate con CardTrader API e salvate nel CSV!`
+          message: `${updatedCards.length} carte sincronizzate con CardTrader API e salvate su disco!`
         }));
       } catch (err) {
         console.error('[CardTrader Live Sync] Errore:', err);
@@ -1451,26 +1544,7 @@ const server = http.createServer(async (req, res) => {
         const wants = payload.wants || [];
         const lastUpdated = payload.lastUpdated || new Date().toLocaleString("it-IT");
 
-        // Save JSON store
-        fs.writeFileSync(JSON_DATA_PATH, JSON.stringify({ cards, wants, lastUpdated }, null, 2), 'utf-8');
-
-        // Save CSV file if cards present
-        if (cards.length > 0) {
-          const csvContent = convertCardsToCsv(cards);
-          try {
-            fs.writeFileSync(CSV_FILE_PATH, csvContent, 'utf-8');
-          } catch (csvErr) {
-            console.error('[CardVault Sync] Avviso scrittura CSV:', csvErr.message);
-          }
-          const localCsv = path.join(ROOT_DIR, 'Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv');
-          if (CSV_FILE_PATH !== localCsv) {
-            try {
-              fs.writeFileSync(localCsv, csvContent, 'utf-8');
-            } catch (e) {}
-          }
-        }
-
-        console.log(`[CardVault Sync] ${cards.length} carte e ${wants.length} wants salvati con successo!`);
+        saveAllStores(cards, wants, lastUpdated);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({

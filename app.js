@@ -529,17 +529,18 @@
       localStorage.setItem(STORAGE_KEY_LAST_UPDATE, lastUpdated);
       savePortfolioData();
       saveWantsData();
+      await syncPortfolioWithDiskCsv(true);
 
       btnRefresh.classList.remove("spinning");
       await checkServerConnection();
       render();
 
-      showToast(isAuto ? "Auto-refresh: quotazioni calibrate aggiornate!" : "Quotazioni di mercato calibrate aggiornate con successo!");
+      showToast(isAuto ? "Auto-refresh: quotazioni calibrate aggiornate e salvate su disco!" : "Quotazioni di mercato calibrate aggiornate e salvate su disco!");
     }, 600);
   }
 
   // Reset prices to pure baseline values
-  function resetToBaseline() {
+  async function resetToBaseline() {
     cards.forEach(card => {
       card.cmMin = card.baseCmMin || card.cmMin;
       card.cmTrend = card.baseCmTrend || card.cmTrend;
@@ -558,8 +559,9 @@
 
     savePortfolioData();
     saveWantsData();
+    await syncPortfolioWithDiskCsv(true);
     render();
-    showToast("Quotazioni ripristinate esattamente ai valori di base originali!");
+    showToast("Quotazioni ripristinate ai valori base e salvate su disco!");
   }
 
   function setupAutoRefresh() {
