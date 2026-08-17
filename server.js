@@ -243,26 +243,114 @@ async function getExpansionBlueprints(expansionId) {
   return allBlueprints;
 }
 
-// Find live CardTrader price for a single card
+function getTargetLangCode(langStr) {
+  if (!langStr) return null;
+  const l = langStr.toLowerCase();
+  if (l.includes('ita')) return 'it';
+  if (l.includes('ing') || l.includes('en')) return 'en';
+  if (l.includes('ted') || l.includes('de')) return 'de';
+  if (l.includes('fra') || l.includes('fr')) return 'fr';
+  if (l.includes('spa') || l.includes('es')) return 'es';
+  if (l.includes('gia') || l.includes('jp') || l.includes('ja')) return 'ja';
+  return null;
+}
+
+function getTargetConditions(condStr) {
+  if (!condStr) return ['Near Mint', 'Slightly Played'];
+  const c = condStr.toLowerCase();
+  if (c.includes('near') || c.includes('nm')) return ['Near Mint', 'Slightly Played'];
+  if (c.includes('exc') || c.includes('ex') || c.includes('slight')) return ['Near Mint', 'Slightly Played', 'Moderately Played'];
+  if (c.includes('good') || c.includes('gd') || c.includes('light') || c.includes('lp')) return ['Near Mint', 'Slightly Played', 'Moderately Played', 'Played'];
+  return ['Near Mint', 'Slightly Played', 'Moderately Played', 'Played', 'Poor'];
+}
+
+function extractFilteredCardTraderPrices(items, card) {
+  const getPrice = p => (p.price_cents ? p.price_cents / 100 : (p.price && p.price.cents ? p.price.cents / 100 : 0));
+  const targetLang = getTargetLangCode(card.language);
+  const targetConds = getTargetConditions(card.condition);
+  const is1st = (card.edition || '').toLowerCase().includes('1');
+
+  let matched = [];
+  let filterLevel = '';
+
+  // Level 1: Lang + Condition + 1st Edition
+  if (targetLang && is1st) {
+    matched = items.filter(p => {
+      const ph = p.properties_hash || {};
+      const matchLang = (ph.yugioh_language === targetLang || ph.language === targetLang);
+      const matchCond = targetConds.includes(ph.condition);
+      const match1st = ph.first_edition === true;
+      return matchLang && matchCond && match1st;
+    });
+    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} • ${card.condition || 'NM'} • 1ª Edizione`;
+  }
+
+  // Level 2: Lang + Condition
+  if (matched.length === 0 && targetLang) {
+    matched = items.filter(p => {
+      const ph = p.properties_hash || {};
+      const matchLang = (ph.yugioh_language === targetLang || ph.language === targetLang);
+      const matchCond = targetConds.includes(ph.condition);
+      return matchLang && matchCond;
+    });
+    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} • ${card.condition || 'NM'}`;
+  }
+
+  // Level 3: Lang Only
+  if (matched.length === 0 && targetLang) {
+    matched = items.filter(p => {
+      const ph = p.properties_hash || {};
+      return (ph.yugioh_language === targetLang || ph.language === targetLang);
+    });
+    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} (Tutte Condizioni)`;
+  }
+
+  // Level 4: Global Condition
+  if (matched.length === 0) {
+    matched = items.filter(p => {
+      const ph = p.properties_hash || {};
+      return targetConds.includes(ph.condition);
+    });
+    if (matched.length > 0) filterLevel = `Globale • ${card.condition || 'NM'}`;
+  }
+
+  // Level 5: Global All
+  if (matched.length === 0) {
+    matched = items;
+    filterLevel = 'Globale (Tutti)';
+  }
+
+  const prices = matched.map(getPrice).filter(p => p > 0).sort((a, b) => a - b);
+  return { prices, matchedCount: matched.length, totalCount: items.length, filterLevel };
+}
+
+// Find live CardTrader price for a single card (Filtered by Language, Condition & Edition)
 async function fetchCardTraderPrice(card) {
   // Ultra-fast exact lookup if blueprintId is available
   if (card.blueprintId) {
     try {
       const mkt = await fetchCardTrader('/api/v2/marketplace/products?blueprint_id=' + card.blueprintId);
       if (mkt) {
-        const prods = Array.isArray(mkt) ? mkt : Object.values(mkt).flat();
-        const prices = prods.map(p => p.price_cents ? p.price_cents / 100 : (p.price ? p.price.cents / 100 : 0)).filter(p => p > 0);
-        if (prices.length > 0) {
-          const minPrice = Math.min(...prices);
-          const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
-          return {
-            success: true,
-            minPrice: parseFloat(minPrice.toFixed(2)),
-            trendPrice: parseFloat((minPrice * 1.15).toFixed(2)),
-            avgPrice: parseFloat(avgPrice.toFixed(2)),
-            listingsCount: prods.length,
-            blueprint: { id: card.blueprintId, name: card.englishName }
-          };
+        const prods = Array.isArray(mkt) ? mkt : (mkt[card.blueprintId] || Object.values(mkt).flat());
+        if (prods && prods.length > 0) {
+          const { prices, matchedCount, totalCount, filterLevel } = extractFilteredCardTraderPrices(prods, card);
+          if (prices.length > 0) {
+            const minPrice = prices[0];
+            const sampleSize = Math.max(1, Math.min(5, prices.length));
+            const sample = prices.slice(0, sampleSize);
+            const trendPrice = sample.reduce((a, b) => a + b, 0) / sample.length;
+
+            return {
+              success: true,
+              blueprintId: card.blueprintId,
+              minPrice: parseFloat(minPrice.toFixed(2)),
+              trendPrice: parseFloat(trendPrice.toFixed(2)),
+              listingsCount: totalCount,
+              matchedListingsCount: matchedCount,
+              filterLevel: filterLevel,
+              blueprint: { id: card.blueprintId, name: card.englishName }
+            };
+          }
         }
       }
     } catch(e) {}
@@ -323,17 +411,13 @@ async function fetchCardTraderPrice(card) {
     };
   }
 
-  const prices = items
-    .map(i => i.price_cents ? (i.price_cents / 100) : (i.price ? (i.price.cents / 100) : 0))
-    .filter(p => p > 0);
+  const { prices, matchedCount, totalCount, filterLevel } = extractFilteredCardTraderPrices(items, card);
 
   if (prices.length === 0) {
     return { success: false, reason: "Nessun prezzo valido trovato tra le inserzioni" };
   }
 
-  prices.sort((a, b) => a - b);
   const minPrice = prices[0];
-
   const sampleSize = Math.max(1, Math.min(5, prices.length));
   const sample = prices.slice(0, sampleSize);
   const trendPrice = sample.reduce((a, b) => a + b, 0) / sample.length;
@@ -346,7 +430,9 @@ async function fetchCardTraderPrice(card) {
     expansionName: exp.name,
     minPrice: Number(minPrice.toFixed(2)),
     trendPrice: Number(trendPrice.toFixed(2)),
-    listingsCount: items.length,
+    listingsCount: totalCount,
+    matchedListingsCount: matchedCount,
+    filterLevel: filterLevel,
     allPrices: prices
   };
 }
@@ -1153,6 +1239,8 @@ const server = http.createServer(async (req, res) => {
                 oldCtTrend: oldTrend,
                 newCtTrend: resPrice.trendPrice,
                 listings: resPrice.listingsCount,
+                matchedListings: resPrice.matchedListingsCount,
+                filterLevel: resPrice.filterLevel || 'Filtro Automatico',
                 expansion: resPrice.expansionName
               });
             } else {

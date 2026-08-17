@@ -2021,7 +2021,7 @@
             row.innerHTML = `
               <div>
                 <div class="ct-log-card-name">${escapeHtml(log.cardName)} <span style="font-size:0.75rem; color:var(--text-muted);">(${escapeHtml(log.code)})</span></div>
-                <div style="font-size:0.75rem; color:var(--text-secondary);">${escapeHtml(log.expansion || "")} • ${log.listings} inserzioni attive</div>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">${escapeHtml(log.expansion || "")} • <span style="color:#38bdf8; font-weight:500;">${escapeHtml(log.filterLevel || "Filtro")}</span> (${log.matchedListings !== undefined ? log.matchedListings : log.listings} copie)</div>
               </div>
               <div class="ct-log-prices">
                 <span class="ct-price-old">Min ${formatEuro(log.oldCtMin)} / Trend ${formatEuro(log.oldCtTrend)}</span>
