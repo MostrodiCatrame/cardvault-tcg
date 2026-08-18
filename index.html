@@ -275,6 +275,8 @@
             <label for="sort-by">Ordina per:</label>
             <select id="sort-by" class="filter-select">
               <option value="num-asc">N° File (Predefinito)</option>
+              <option value="updated-desc">🕒 Ultima Modifica (Più recenti)</option>
+              <option value="updated-asc">🕒 Ultima Modifica (Meno recenti)</option>
               <option value="price-desc">Prezzo Trend (Più Alto)</option>
               <option value="price-asc">Prezzo Trend (Più Basso)</option>
               <option value="min-desc">Prezzo Minimo (Più Alto)</option>
@@ -428,6 +430,8 @@
             <select id="sort-wants-by" class="filter-select">
               <option value="target-desc">Prezzo Target (Più Alto)</option>
               <option value="target-asc">Prezzo Target (Più Basso)</option>
+              <option value="updated-desc">🕒 Ultima Modifica (Più recenti)</option>
+              <option value="updated-asc">🕒 Ultima Modifica (Meno recenti)</option>
               <option value="best-price-asc">Miglior Prezzo Mercato (Più Economico)</option>
               <option value="deal-saving">Maggior Risparmio (€ Sotto Target)</option>
               <option value="name-asc">Nome Carta (A - Z)</option>
@@ -520,6 +524,8 @@
         <h2 id="modal-title">Aggiungi Nuova Carta nel Portfolio</h2>
         <button type="button" class="modal-close-btn" id="btn-close-modal" aria-label="Chiudi modale">&times;</button>
       </div>
+
+      <div class="modal-timestamp-badge" id="card-modal-timestamp"></div>
 
       <form id="card-form" class="modal-form">
         <input type="hidden" id="form-card-id">
@@ -688,6 +694,8 @@
         <h2 id="want-modal-title">Aggiungi Carta alla Lista Wants</h2>
         <button type="button" class="modal-close-btn" id="btn-close-want-modal" aria-label="Chiudi modale">&times;</button>
       </div>
+
+      <div class="modal-timestamp-badge" id="want-modal-timestamp"></div>
 
       <form id="want-form" class="modal-form">
         <input type="hidden" id="form-want-id">
@@ -943,6 +951,7 @@
           </div>
           <div id="lightbox-sub" class="lightbox-meta">RA04-IT038 • Quarter Century Stampede</div>
           <div id="lightbox-tags" class="lightbox-tags"></div>
+          <div id="lightbox-timestamp" class="lightbox-timestamp-badge"></div>
           
           <div class="lightbox-desc-box" id="lightbox-desc-box">
             <h4>Effetto / Descrizione</h4>

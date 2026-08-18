@@ -159,7 +159,7 @@
   const toastContainer = document.getElementById("toast-container");
 
   // ==========================================
-  // INITIALIZATION
+  // INITIALIZATION & SMART TIMESTAMP ENGINE
   // ==========================================
   async function init() {
     loadData();
@@ -175,27 +175,214 @@
     }
   }
 
+  function getTimestampMs(item) {
+    if (!item) return 0;
+    if (item.updatedAt) {
+      const ms = new Date(item.updatedAt).getTime();
+      if (!isNaN(ms)) return ms;
+    }
+    if (item.lastModified) {
+      const ms = new Date(item.lastModified).getTime();
+      if (!isNaN(ms)) return ms;
+    }
+    return 0;
+  }
+
+  function formatShortDate(isoString) {
+    if (!isoString) return "N/D";
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return String(isoString);
+      
+      const now = new Date();
+      const isToday = d.toDateString() === now.toDateString();
+      
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      const isYesterday = d.toDateString() === yesterday.toDateString();
+
+      const timeStr = d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+
+      if (isToday) return `Oggi, ${timeStr}`;
+      if (isYesterday) return `Ieri, ${timeStr}`;
+
+      return d.toLocaleDateString("it-IT", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+    } catch(e) {
+      return String(isoString);
+    }
+  }
+
+  function formatFullDate(isoString) {
+    if (!isoString) return "Non disponibile";
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return "Data non valida";
+      return d.toLocaleDateString("it-IT", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    } catch(e) {
+      return String(isoString);
+    }
+  }
+
+  // Merges local and remote cards picking strictly the newest version per card based on timestamp
+  function mergeCardsWithRemote(localList, remoteList) {
+    if (!Array.isArray(remoteList) || remoteList.length === 0) {
+      return { merged: localList || [], needsPush: true };
+    }
+    if (!Array.isArray(localList) || localList.length === 0) {
+      return { merged: remoteList, needsPush: false };
+    }
+
+    let needsPush = false;
+    const merged = [];
+    const remoteMap = new Map();
+
+    remoteList.forEach(c => {
+      if (c.id !== undefined && c.id !== null) remoteMap.set(`id:${c.id}`, c);
+      if (c.code) remoteMap.set(`code:${c.code.toUpperCase().trim()}`, c);
+    });
+
+    const handledRemoteKeys = new Set();
+
+    localList.forEach(localCard => {
+      let matchedRemote = null;
+      if (localCard.id !== undefined && localCard.id !== null && remoteMap.has(`id:${localCard.id}`)) {
+        matchedRemote = remoteMap.get(`id:${localCard.id}`);
+      } else if (localCard.code && remoteMap.has(`code:${localCard.code.toUpperCase().trim()}`)) {
+        matchedRemote = remoteMap.get(`code:${localCard.code.toUpperCase().trim()}`);
+      }
+
+      if (matchedRemote) {
+        handledRemoteKeys.add(`id:${matchedRemote.id}`);
+        if (matchedRemote.code) handledRemoteKeys.add(`code:${matchedRemote.code.toUpperCase().trim()}`);
+
+        const localMs = getTimestampMs(localCard);
+        const remoteMs = getTimestampMs(matchedRemote);
+
+        if (localMs > remoteMs) {
+          // Local card is strictly newer!
+          merged.push(localCard);
+          needsPush = true;
+          console.log(`[SmartMerge] Mantengo versione locale più recente per "${localCard.name}" (${localCard.code})`);
+        } else {
+          // Remote is newer or equal
+          const mergedCard = { ...localCard, ...matchedRemote };
+          merged.push(mergedCard);
+        }
+      } else {
+        // Card exists only in local storage
+        merged.push(localCard);
+        needsPush = true;
+      }
+    });
+
+    // Add remote cards that weren't in local storage
+    remoteList.forEach(remoteCard => {
+      const isHandled = (remoteCard.id !== undefined && handledRemoteKeys.has(`id:${remoteCard.id}`)) ||
+                        (remoteCard.code && handledRemoteKeys.has(`code:${remoteCard.code.toUpperCase().trim()}`));
+      if (!isHandled) {
+        merged.push(remoteCard);
+      }
+    });
+
+    merged.sort((a, b) => (a.num || a.id || 0) - (b.num || b.id || 0));
+    return { merged, needsPush };
+  }
+
+  function mergeWantsWithRemote(localList, remoteList) {
+    if (!Array.isArray(remoteList) || remoteList.length === 0) {
+      return { merged: localList || [], needsPush: true };
+    }
+    if (!Array.isArray(localList) || localList.length === 0) {
+      return { merged: remoteList, needsPush: false };
+    }
+
+    let needsPush = false;
+    const merged = [];
+    const remoteMap = new Map();
+
+    remoteList.forEach(w => {
+      if (w.id !== undefined && w.id !== null) remoteMap.set(`id:${w.id}`, w);
+      if (w.code) remoteMap.set(`code:${w.code.toUpperCase().trim()}`, w);
+    });
+
+    const handledRemoteKeys = new Set();
+
+    localList.forEach(localWant => {
+      let matchedRemote = null;
+      if (localWant.id !== undefined && localWant.id !== null && remoteMap.has(`id:${localWant.id}`)) {
+        matchedRemote = remoteMap.get(`id:${localWant.id}`);
+      } else if (localWant.code && remoteMap.has(`code:${localWant.code.toUpperCase().trim()}`)) {
+        matchedRemote = remoteMap.get(`code:${localWant.code.toUpperCase().trim()}`);
+      }
+
+      if (matchedRemote) {
+        handledRemoteKeys.add(`id:${matchedRemote.id}`);
+        if (matchedRemote.code) handledRemoteKeys.add(`code:${matchedRemote.code.toUpperCase().trim()}`);
+
+        const localMs = getTimestampMs(localWant);
+        const remoteMs = getTimestampMs(matchedRemote);
+
+        if (localMs > remoteMs) {
+          merged.push(localWant);
+          needsPush = true;
+        } else {
+          merged.push({ ...localWant, ...matchedRemote });
+        }
+      } else {
+        merged.push(localWant);
+        needsPush = true;
+      }
+    });
+
+    remoteList.forEach(remoteWant => {
+      const isHandled = (remoteWant.id !== undefined && handledRemoteKeys.has(`id:${remoteWant.id}`)) ||
+                        (remoteWant.code && handledRemoteKeys.has(`code:${remoteWant.code.toUpperCase().trim()}`));
+      if (!isHandled) {
+        merged.push(remoteWant);
+      }
+    });
+
+    merged.sort((a, b) => (a.id || 0) - (b.id || 0));
+    return { merged, needsPush };
+  }
+
   async function syncFromServer() {
     if (!isServerConnected) return;
     try {
       const res = await fetch("/api/portfolio", { headers: getAuthHeaders() });
       if (res.ok) {
         const data = await res.json();
-        if (data && Array.isArray(data.cards) && data.cards.length > 0) {
-          cards = data.cards;
-          if (Array.isArray(data.wants) && data.wants.length > 0) {
-            wants = data.wants;
-          }
+        if (data && Array.isArray(data.cards)) {
+          const cardMergeResult = mergeCardsWithRemote(cards, data.cards);
+          const wantMergeResult = mergeWantsWithRemote(wants, data.wants || []);
+
+          cards = cardMergeResult.merged;
+          wants = wantMergeResult.merged;
+
           if (data.lastUpdated) {
             lastUpdated = data.lastUpdated;
             localStorage.setItem(STORAGE_KEY_LAST_UPDATE, lastUpdated);
           }
+
           savePortfolioData();
           saveWantsData();
           populateFilterDropdowns();
           populateWantsFilterDropdowns();
           render();
-          console.log(`[CardVault] Sincronizzate ${cards.length} carte e ${wants.length} wants dal server!`);
+
+          if (cardMergeResult.needsPush || wantMergeResult.needsPush) {
+            console.log("[CardVault] Rilevate modifiche locali più recenti! Sincronizzazione automatica su server e CSV...");
+            await syncPortfolioWithDiskCsv(true);
+          }
+
+          console.log(`[CardVault] Sincronizzazione completata: ${cards.length} carte e ${wants.length} wants caricate con la versione più recente.`);
         }
       }
     } catch (err) {
@@ -204,6 +391,7 @@
   }
 
   function loadData() {
+    const isoNow = new Date().toISOString();
     const savedCards = localStorage.getItem(STORAGE_KEY_PORTFOLIO);
     if (savedCards) {
       try {
@@ -215,7 +403,7 @@
       cards = JSON.parse(JSON.stringify(DEFAULT_CARDS));
     }
 
-    // Ensure baseline anchors exist for each card to prevent compounding drift
+    // Ensure baseline anchors and timestamp exist for each card
     cards.forEach(c => {
       if (!c.baseCmMin) c.baseCmMin = c.cmMin || 0;
       if (!c.baseCmTrend) c.baseCmTrend = c.cmTrend || 0;
@@ -223,6 +411,7 @@
       if (!c.baseCtTrend) c.baseCtTrend = c.ctTrend || 0;
       if (!c.baseEbMin) c.baseEbMin = c.ebMin || 0;
       if (!c.baseEbTrend) c.baseEbTrend = c.ebTrend || 0;
+      if (!c.updatedAt) c.updatedAt = isoNow;
     });
     savePortfolioData();
 
@@ -242,6 +431,7 @@
       if (!w.baseCmMin) w.baseCmMin = w.cmMin || 0;
       if (!w.baseCtMin) w.baseCtMin = w.ctMin || 0;
       if (!w.baseEbMin) w.baseEbMin = w.ebMin || 0;
+      if (!w.updatedAt) w.updatedAt = isoNow;
     });
     saveWantsData();
 
@@ -482,6 +672,8 @@
     btnRefresh.classList.add("spinning");
 
     setTimeout(async () => {
+      const refreshIso = new Date().toISOString();
+
       // Calculate realistic market micro-movements anchored strictly to baseline prices
       // This guarantees prices never compound runaway inflation!
       cards.forEach(card => {
@@ -495,6 +687,7 @@
         card.cmTrend = parseFloat((baseCmTrend * (1 + noise)).toFixed(2));
         card.ctTrend = parseFloat((baseCtTrend * (1 + noise * 0.9)).toFixed(2));
         card.ebTrend = parseFloat((baseEbTrend * (1 + noise * 1.1)).toFixed(2));
+        card.updatedAt = refreshIso;
 
         // Evaluate Trend status against base minimum
         const baseAvgMin = ((card.baseCmMin || card.cmMin) + (card.baseCtMin || card.ctMin) + (card.baseEbMin || card.ebMin)) / 3;
@@ -523,6 +716,7 @@
         want.cmMin = parseFloat((baseCmMin * (1 + noise)).toFixed(2));
         want.ctMin = parseFloat((baseCtMin * (1 + noise * 0.9)).toFixed(2));
         want.ebMin = parseFloat((baseEbMin * (1 + noise * 1.1)).toFixed(2));
+        want.updatedAt = refreshIso;
       });
 
       lastUpdated = new Date().toLocaleString("it-IT");
@@ -541,6 +735,7 @@
 
   // Reset prices to pure baseline values
   async function resetToBaseline() {
+    const resetIso = new Date().toISOString();
     cards.forEach(card => {
       card.cmMin = card.baseCmMin || card.cmMin;
       card.cmTrend = card.baseCmTrend || card.cmTrend;
@@ -549,12 +744,14 @@
       card.ebMin = card.baseEbMin || card.ebMin;
       card.ebTrend = card.baseEbTrend || card.ebTrend;
       card.trendStatus = (card.cmTrend > card.cmMin * 1.15) ? "up" : "stable";
+      card.updatedAt = resetIso;
     });
 
     wants.forEach(want => {
       want.cmMin = want.baseCmMin || want.cmMin;
       want.ctMin = want.baseCtMin || want.ctMin;
       want.ebMin = want.baseEbMin || want.ebMin;
+      want.updatedAt = resetIso;
     });
 
     savePortfolioData();
@@ -695,6 +892,8 @@
 
       switch (portfolioFilters.sortBy) {
         case "num-asc": return (a.num || a.id) - (b.num || b.id);
+        case "updated-desc": return getTimestampMs(b) - getTimestampMs(a);
+        case "updated-asc": return getTimestampMs(a) - getTimestampMs(b);
         case "price-desc": return avgB.avgTrend - avgA.avgTrend;
         case "price-asc": return avgA.avgTrend - avgB.avgTrend;
         case "min-desc": return avgB.avgMin - avgA.avgMin;
@@ -812,6 +1011,7 @@
           ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
           <div class="card-cell-sub">${escapeHtml(card.edition || "")}</div>
           ${card.notes ? `<div class="card-cell-notes">${escapeHtml(card.notes)}</div>` : ""}
+          ${card.updatedAt ? `<div class="card-cell-timestamp" title="Ultima modifica: ${formatFullDate(card.updatedAt)}">🕒 ${formatShortDate(card.updatedAt)}</div>` : ""}
             </div>
           </div>
         </td>
@@ -980,6 +1180,7 @@
               <span class="badge-condition ${getConditionClass(card.condition)}">${escapeHtml(card.condition)}</span>
               <span class="badge-condition"><span style="font-size: 0.95rem; vertical-align: middle;">${getLanguageFlag(card.language)}</span> ${escapeHtml(card.language)}</span>
               ${card.cardType ? `<span class="badge-cardtype">${escapeHtml(card.cardType)}</span>` : ''}
+              ${card.updatedAt ? `<span class="card-grid-timestamp" title="Ultima modifica: ${formatFullDate(card.updatedAt)}">🕒 ${formatShortDate(card.updatedAt)}</span>` : ''}
             </div>
 
             <div class="card-item-prices-grid">
@@ -1077,6 +1278,8 @@
       switch (wantsFilters.sortBy) {
         case "target-desc": return b.targetPrice - a.targetPrice;
         case "target-asc": return a.targetPrice - b.targetPrice;
+        case "updated-desc": return getTimestampMs(b) - getTimestampMs(a);
+        case "updated-asc": return getTimestampMs(a) - getTimestampMs(b);
         case "best-price-asc": return bestA.price - bestB.price;
         case "deal-saving": return savingB - savingA;
         case "name-asc": return a.name.localeCompare(b.name, "it");
@@ -1182,6 +1385,7 @@
           ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(want.englishName)}</span></div>` : ''}
           <div class="card-cell-sub">${escapeHtml(want.edition || "")}</div>
           ${want.notes ? `<div class="card-cell-notes">${escapeHtml(want.notes)}</div>` : ""}
+          ${want.updatedAt ? `<div class="card-cell-timestamp" title="Ultima modifica: ${formatFullDate(want.updatedAt)}">🕒 ${formatShortDate(want.updatedAt)}</div>` : ""}
         </td>
         <td class="col-rarity">
           <span class="badge-rarity ${getRarityClass(want.rarity)}">${escapeHtml(want.rarity)}</span>
@@ -1324,6 +1528,7 @@
             <span class="badge-rarity ${getRarityClass(want.rarity)}">${escapeHtml(want.rarity)}</span>
             <span class="badge-condition ${getConditionClass(want.targetCondition)}">${escapeHtml(want.targetCondition)}</span>
             <span class="badge-condition"><span style="font-size: 0.95rem; vertical-align: middle;">${getLanguageFlag(want.language)}</span> ${escapeHtml(want.language)}</span>
+            ${want.updatedAt ? `<span class="card-grid-timestamp" title="Ultima modifica: ${formatFullDate(want.updatedAt)}">🕒 ${formatShortDate(want.updatedAt)}</span>` : ''}
           </div>
 
           <div class="card-item-prices-grid">
@@ -1839,7 +2044,7 @@
       }
 
       // Update state
-      cards = result.cards;
+      cards = result.cards.map(c => ({ ...c, updatedAt: c.updatedAt || new Date().toISOString() }));
       savePortfolioData();
       populateFilterDropdowns();
       render();
@@ -1872,7 +2077,7 @@
 
       const idx = cards.findIndex(c => c.id === id);
       if (idx !== -1) {
-        cards[idx] = result.card;
+        cards[idx] = { ...result.card, updatedAt: new Date().toISOString() };
         savePortfolioData();
         await syncPortfolioWithDiskCsv(true);
         render();
@@ -1907,6 +2112,10 @@
         ${card.cardType ? `<span class="badge-cardtype">${escapeHtml(card.cardType)}</span>` : ''}
         ${card.archetype ? `<span class="badge-condition" style="color:var(--accent-gold);">Archetipo: ${escapeHtml(card.archetype)}</span>` : ''}
       `;
+    }
+    const lbTs = document.getElementById("lightbox-timestamp");
+    if (lbTs) {
+      lbTs.innerHTML = `🕒 <strong>Ultima Modifica:</strong> ${formatFullDate(card.updatedAt)}`;
     }
     if (lightboxDesc) {
       lightboxDesc.textContent = card.desc || "Dettagli effetto disponibili sincronizzando la carta con il database YGOPRODeck.";
@@ -2173,7 +2382,7 @@
       }
 
       // Update local dataset
-      cards = result.cards;
+      cards = result.cards.map(c => ({ ...c, updatedAt: c.updatedAt || new Date().toISOString() }));
       savePortfolioData();
       populateFilterDropdowns();
       render();
@@ -2209,6 +2418,7 @@
         card.ctTrend = resPrice.trendPrice;
         card.baseCtMin = resPrice.minPrice;
         card.baseCtTrend = resPrice.trendPrice;
+        card.updatedAt = new Date().toISOString();
 
         savePortfolioData();
         await syncPortfolioWithDiskCsv(true);
@@ -2231,10 +2441,17 @@
     editingCardId = cardId;
     cardForm.reset();
 
+    const tsEl = document.getElementById("card-modal-timestamp");
+
     if (cardId) {
       cardModalTitle.textContent = "Modifica Carta nel Portfolio";
       const card = cards.find(c => c.id === cardId);
       if (!card) return;
+
+      if (tsEl) {
+        tsEl.style.display = "flex";
+        tsEl.innerHTML = `🕒 <strong>Ultima modifica:</strong> ${formatFullDate(card.updatedAt)}`;
+      }
 
       document.getElementById("form-card-id").value = card.id;
       document.getElementById("form-name").value = card.name || "";
@@ -2257,6 +2474,9 @@
       document.getElementById("form-trend-status").value = card.trendStatus || "stable";
       document.getElementById("form-trend-pct").value = card.trendPct !== undefined ? card.trendPct : "";
     } else {
+      if (tsEl) {
+        tsEl.style.display = "none";
+      }
       cardModalTitle.textContent = "Aggiungi Nuova Carta nel Portfolio";
       document.getElementById("form-card-id").value = "";
       document.getElementById("form-english-name").value = "";
@@ -2297,6 +2517,7 @@
 
     const trendStatus = document.getElementById("form-trend-status").value;
     const trendPct = parseFloat(document.getElementById("form-trend-pct").value) || 0;
+    const nowIso = new Date().toISOString();
 
     if (editingCardId) {
       const index = cards.findIndex(c => c.id === editingCardId);
@@ -2308,7 +2529,8 @@
           baseCmMin: cmMin, baseCmTrend: cmTrend,
           baseCtMin: ctMin, baseCtTrend: ctTrend,
           baseEbMin: ebMin, baseEbTrend: ebTrend,
-          trendStatus, trendPct
+          trendStatus, trendPct,
+          updatedAt: nowIso
         };
         showToast(`Carta "${name}" modificata con successo!`);
       }
@@ -2323,7 +2545,8 @@
         baseCmMin: cmMin, baseCmTrend: cmTrend,
         baseCtMin: ctMin, baseCtTrend: ctTrend,
         baseEbMin: ebMin, baseEbTrend: ebTrend,
-        trendStatus, trendPct
+        trendStatus, trendPct,
+        updatedAt: nowIso
       };
       cards.push(newCard);
       showToast(`Carta "${name}" aggiunta al portfolio!`);
@@ -2357,10 +2580,17 @@
     editingWantId = wantId;
     wantForm.reset();
 
+    const tsEl = document.getElementById("want-modal-timestamp");
+
     if (wantId) {
       wantModalTitle.textContent = "Modifica Want nella Wishlist";
       const want = wants.find(w => w.id === wantId);
       if (!want) return;
+
+      if (tsEl) {
+        tsEl.style.display = "flex";
+        tsEl.innerHTML = `🕒 <strong>Ultima modifica:</strong> ${formatFullDate(want.updatedAt)}`;
+      }
 
       document.getElementById("form-want-id").value = want.id;
       document.getElementById("want-form-name").value = want.name || "";
@@ -2381,6 +2611,9 @@
       document.getElementById("want-form-eb-min").value = want.ebMin || "";
       document.getElementById("want-form-eb-trend").value = want.ebTrend || "";
     } else {
+      if (tsEl) {
+        tsEl.style.display = "none";
+      }
       wantModalTitle.textContent = "Aggiungi Carta alla Lista Wants";
       document.getElementById("form-want-id").value = "";
       document.getElementById("want-form-english-name").value = "";
@@ -2418,6 +2651,7 @@
     const ctTrend = parseFloat(document.getElementById("want-form-ct-trend").value) || 0;
     const ebMin = parseFloat(document.getElementById("want-form-eb-min").value) || 0;
     const ebTrend = parseFloat(document.getElementById("want-form-eb-trend").value) || 0;
+    const nowIso = new Date().toISOString();
 
     if (editingWantId) {
       const index = wants.findIndex(w => w.id === editingWantId);
@@ -2426,7 +2660,8 @@
           ...wants[index],
           name, englishName, expansion, code, rarity, edition, language, targetCondition, targetPrice, notes,
           cmMin, cmTrend, ctMin, ctTrend, ebMin, ebTrend,
-          baseCmMin: cmMin, baseCtMin: ctMin, baseEbMin: ebMin
+          baseCmMin: cmMin, baseCtMin: ctMin, baseEbMin: ebMin,
+          updatedAt: nowIso
         };
         showToast(`Want "${name}" modificato con successo!`);
       }
@@ -2438,7 +2673,8 @@
         cmMin, cmTrend, ctMin, ctTrend, ebMin, ebTrend,
         baseCmMin: cmMin, baseCtMin: ctMin, baseEbMin: ebMin,
         trendStatus: "stable",
-        trendPct: 0
+        trendPct: 0,
+        updatedAt: nowIso
       };
       wants.push(newWant);
       showToast(`Carta "${name}" aggiunta alla Lista Wants!`);
@@ -2499,7 +2735,8 @@
         baseEbTrend: want.ebTrend || (want.targetPrice * 1.15),
         trendStatus: "up",
         trendPct: 5.0,
-        notes: want.notes ? `Acquistata da Wants (${want.notes})` : "Acquistata da Wants"
+        notes: want.notes ? `Acquistata da Wants (${want.notes})` : "Acquistata da Wants",
+        updatedAt: new Date().toISOString()
       };
 
       cards.push(newCard);
@@ -2704,7 +2941,8 @@
             baseEbMin: ebMin, baseEbTrend: ebTrend,
             trendStatus: (cmTrend > cmMin * 1.15) ? "up" : "stable",
             trendPct: (cmTrend > cmMin) ? parseFloat(((cmTrend - cmMin) / cmMin * 10).toFixed(1)) : 0,
-            notes: tokens[18] || tokens[14] || ""
+            notes: tokens[18] || tokens[14] || "",
+            updatedAt: new Date().toISOString()
           };
 
           newCards.push(card);

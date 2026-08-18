@@ -604,21 +604,72 @@ function convertCardsToCsv(cards) {
 // Centralized atomic persistence to data_portfolio.json, cards-data.js and CSV files
 function saveAllStores(cards, wants, lastUpdated) {
   const ts = lastUpdated || new Date().toLocaleString("it-IT");
+  const isoNow = new Date().toISOString();
+
+  // Try to load existing data for smart timestamp merge
+  let existingPortfolio = null;
+  try {
+    if (fs.existsSync(JSON_DATA_PATH)) {
+      existingPortfolio = JSON.parse(fs.readFileSync(JSON_DATA_PATH, 'utf-8'));
+    }
+  } catch(e) {}
+
+  const existingCardMap = new Map();
+  if (existingPortfolio && Array.isArray(existingPortfolio.cards)) {
+    existingPortfolio.cards.forEach(c => {
+      if (c.id !== undefined && c.id !== null) existingCardMap.set(`id:${c.id}`, c);
+      if (c.code) existingCardMap.set(`code:${c.code.toUpperCase().trim()}`, c);
+    });
+  }
+
+  // Ensure each card has an updatedAt timestamp
+  const processedCards = (cards || []).map(card => {
+    let cardUpdatedAt = card.updatedAt;
+    if (!cardUpdatedAt) {
+      const existing = (card.id !== undefined && existingCardMap.get(`id:${card.id}`)) ||
+                       (card.code && existingCardMap.get(`code:${card.code.toUpperCase().trim()}`));
+      cardUpdatedAt = (existing && existing.updatedAt) ? existing.updatedAt : isoNow;
+    }
+    return {
+      ...card,
+      updatedAt: cardUpdatedAt
+    };
+  });
   
   // If wants not passed, preserve existing
   let finalWants = wants;
   if (!finalWants) {
     try {
-      const existing = getStoredPortfolio();
-      finalWants = existing.wants || [];
+      finalWants = existingPortfolio ? (existingPortfolio.wants || []) : [];
     } catch(e) {
       finalWants = [];
     }
   }
 
+  const existingWantMap = new Map();
+  if (existingPortfolio && Array.isArray(existingPortfolio.wants)) {
+    existingPortfolio.wants.forEach(w => {
+      if (w.id !== undefined && w.id !== null) existingWantMap.set(`id:${w.id}`, w);
+      if (w.code) existingWantMap.set(`code:${w.code.toUpperCase().trim()}`, w);
+    });
+  }
+
+  const processedWants = (finalWants || []).map(want => {
+    let wantUpdatedAt = want.updatedAt;
+    if (!wantUpdatedAt) {
+      const existing = (want.id !== undefined && existingWantMap.get(`id:${want.id}`)) ||
+                       (want.code && existingWantMap.get(`code:${want.code.toUpperCase().trim()}`));
+      wantUpdatedAt = (existing && existing.updatedAt) ? existing.updatedAt : isoNow;
+    }
+    return {
+      ...want,
+      updatedAt: wantUpdatedAt
+    };
+  });
+
   const portfolioData = {
-    cards: cards || [],
-    wants: finalWants || [],
+    cards: processedCards,
+    wants: processedWants,
     lastUpdated: ts
   };
 
@@ -631,7 +682,7 @@ function saveAllStores(cards, wants, lastUpdated) {
 
   // 2. Write cards-data.js
   try {
-    const cardsDataContent = `// CardVault TCG Master Collection (36 Carte con Blueprint Certificati CardTrader & YGOPRODeck)
+    const cardsDataContent = `// CardVault TCG Master Collection (${portfolioData.cards.length} Carte con Blueprint Certificati CardTrader & YGOPRODeck)
 const DEFAULT_CARDS = ${JSON.stringify(portfolioData.cards, null, 2)};
 
 const DEFAULT_WANTS = ${JSON.stringify(portfolioData.wants, null, 2)};
@@ -647,8 +698,8 @@ if (typeof module !== 'undefined') {
   }
 
   // 3. Write CSV to project folder and Desktop
-  if (cards && cards.length > 0) {
-    const csvContent = convertCardsToCsv(cards);
+  if (processedCards && processedCards.length > 0) {
+    const csvContent = convertCardsToCsv(processedCards);
     try {
       fs.writeFileSync(CSV_FILE_PATH, csvContent, 'utf-8');
     } catch (e) {}
@@ -661,7 +712,7 @@ if (typeof module !== 'undefined') {
     }
   }
 
-  console.log(`[Auto-Save Disk] Salvataggio completato: ${portfolioData.cards.length} carte e ${portfolioData.wants.length} wants persistiti su JSON, CSV e cards-data.js.`);
+  console.log(`[Auto-Save Disk] Salvataggio completato: ${portfolioData.cards.length} carte e ${portfolioData.wants.length} wants persistiti su JSON, CSV e cards-data.js con timestamp.`);
   return portfolioData;
 }
 
@@ -727,7 +778,8 @@ function parseCsvCards(csvText) {
         baseEbMin: ebMin, baseEbTrend: ebTrend,
         trendStatus: (cmTrend > cmMin * 1.15) ? "up" : "stable",
         trendPct: (cmTrend > cmMin) ? parseFloat(((cmTrend - cmMin) / cmMin * 10).toFixed(1)) : 0,
-        notes: tokens[14] || ""
+        notes: tokens[14] || "",
+        updatedAt: new Date().toISOString()
       });
     }
   }
@@ -736,11 +788,15 @@ function parseCsvCards(csvText) {
 
 // Retrieve portfolio state with multi-tier fallback (JSON storage -> CSV -> cards-data.js)
 function getStoredPortfolio() {
+  const isoNow = new Date().toISOString();
+
   // 1. JSON persistent storage (contains both cards and wants)
   if (fs.existsSync(JSON_DATA_PATH)) {
     try {
       const data = JSON.parse(fs.readFileSync(JSON_DATA_PATH, 'utf-8'));
       if (data && Array.isArray(data.cards) && data.cards.length > 0) {
+        data.cards.forEach(c => { if (!c.updatedAt) c.updatedAt = isoNow; });
+        (data.wants || []).forEach(w => { if (!w.updatedAt) w.updatedAt = isoNow; });
         return data;
       }
     } catch (e) {}
@@ -754,9 +810,11 @@ function getStoredPortfolio() {
       if (cards.length > 0) {
         let defaultWants = [];
         try {
+          delete require.cache[require.resolve('./cards-data.js')];
           const cardsData = require('./cards-data.js');
           defaultWants = cardsData.DEFAULT_WANTS || [];
         } catch (e) {}
+        defaultWants.forEach(w => { if (!w.updatedAt) w.updatedAt = isoNow; });
         return {
           cards,
           wants: defaultWants,
@@ -768,10 +826,13 @@ function getStoredPortfolio() {
 
   // 3. Fallback to cards-data.js
   try {
+    delete require.cache[require.resolve('./cards-data.js')];
     const cardsData = require('./cards-data.js');
+    const cards = (cardsData.DEFAULT_CARDS || []).map(c => ({ ...c, updatedAt: c.updatedAt || isoNow }));
+    const wants = (cardsData.DEFAULT_WANTS || []).map(w => ({ ...w, updatedAt: w.updatedAt || isoNow }));
     return {
-      cards: cardsData.DEFAULT_CARDS || [],
-      wants: cardsData.DEFAULT_WANTS || [],
+      cards,
+      wants,
       lastUpdated: new Date().toLocaleString("it-IT")
     };
   } catch (e) {
@@ -1280,6 +1341,18 @@ const server = http.createServer(async (req, res) => {
         if (!card) throw new Error("Dati carta mancanti");
 
         const result = await fetchCardTraderPrice(card);
+        if (result.success && result.listingsCount > 0) {
+          const currentData = getStoredPortfolio();
+          const cardIdx = (currentData.cards || []).findIndex(c => c.id === card.id || c.code === card.code || c.num === card.num);
+          if (cardIdx !== -1) {
+            currentData.cards[cardIdx].ctMin = result.minPrice;
+            currentData.cards[cardIdx].ctTrend = result.trendPrice;
+            currentData.cards[cardIdx].baseCtMin = result.minPrice;
+            currentData.cards[cardIdx].baseCtTrend = result.trendPrice;
+            currentData.cards[cardIdx].updatedAt = new Date().toISOString();
+            saveAllStores(currentData.cards, currentData.wants, new Date().toLocaleString("it-IT"));
+          }
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result));
       } catch (err) {
@@ -1357,10 +1430,11 @@ const server = http.createServer(async (req, res) => {
         if (!card) throw new Error("Dati carta mancanti");
 
         const result = await fetchMultiMarketplaceCard(card, payload.justTcgKey);
+        result.card.updatedAt = new Date().toISOString();
 
         // Auto-save updated card immediately to all stores on disk
         const currentData = getStoredPortfolio();
-        const cardIdx = (currentData.cards || []).findIndex(c => c.id === card.id || c.num === card.num);
+        const cardIdx = (currentData.cards || []).findIndex(c => c.id === card.id || c.code === card.code || c.num === card.num);
         if (cardIdx !== -1) {
           currentData.cards[cardIdx] = result.card;
           saveAllStores(currentData.cards, currentData.wants, new Date().toLocaleString("it-IT"));
@@ -1395,6 +1469,7 @@ const server = http.createServer(async (req, res) => {
           const card = inputCards[i];
           try {
             const resItem = await fetchMultiMarketplaceCard(card, payload.justTcgKey);
+            resItem.card.updatedAt = new Date().toISOString();
             updatedCards.push(resItem.card);
             logs.push(resItem.log);
           } catch(itemErr) {
@@ -1458,6 +1533,7 @@ const server = http.createServer(async (req, res) => {
               card.ctTrend = resPrice.trendPrice;
               card.baseCtMin = resPrice.minPrice;
               card.baseCtTrend = resPrice.trendPrice;
+              card.updatedAt = new Date().toISOString();
 
               logs.push({
                 cardName: card.name,
@@ -1488,6 +1564,7 @@ const server = http.createServer(async (req, res) => {
             });
           }
 
+          card.updatedAt = card.updatedAt || new Date().toISOString();
           updatedCards.push(card);
           await new Promise(r => setTimeout(r, 100));
         }
