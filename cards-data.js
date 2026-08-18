@@ -25,8 +25,10 @@ const DEFAULT_CARDS = [
     "ebMin": 4.08,
     "ebTrend": 4.9,
     "cmMin": 46.79,
-    "cmTrend": 53.81,
-    "updatedAt": "2026-08-18T14:42:53.610Z"
+    "cmTrend": 47.1,
+    "updatedAt": "2026-08-18T15:41:18.155Z",
+    "baseCmMin": 46.79,
+    "baseCmTrend": 47.1
   },
   {
     "id": 2,

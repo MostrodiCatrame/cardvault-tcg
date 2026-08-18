@@ -872,6 +872,25 @@ function getStoredPortfolio() {
 // YGOPRODECK & JUSTTCG MULTI-MARKETPLACE ENGINE
 // ==========================================
 
+function normalizeRarity(r) {
+  const s = (r || '').toLowerCase().trim();
+  if (s.includes('ghost')) return 'ghost rare';
+  if (s.includes('starlight')) return 'starlight rare';
+  if (s.includes('quarter century') || s.includes('qcr')) return 'quarter century secret rare';
+  if (s.includes('ultimate') || s.includes('utr')) return 'ultimate rare';
+  if (s.includes('prismatic collector')) return 'prismatic collectors rare';
+  if (s.includes('collector') || s.includes('pcr')) return 'collectors rare';
+  if (s.includes('platinum secret')) return 'platinum secret rare';
+  if (s.includes('prismatic secret')) return 'prismatic secret rare';
+  if (s.includes('prismatic ultimate')) return 'prismatic ultimate rare';
+  if (s.includes('secret')) return 'secret rare';
+  if (s.includes('ultra')) return 'ultra rare';
+  if (s.includes('super')) return 'super rare';
+  if (s.includes('common') || s.includes('short')) return 'common';
+  if (s.includes('rare')) return 'rare';
+  return s;
+}
+
 function cleanCardNameForYgo(name) {
   return (name || '')
     .replace(/\s*\(V\.\d+\)/gi, '')
@@ -1001,28 +1020,59 @@ function fetchJustTcgPrice(card, apiKey) {
         try {
           const j = JSON.parse(d);
           if (j.data && Array.isArray(j.data) && j.data.length > 0) {
-            const cardRarity = (card.rarity || '').toLowerCase().trim();
+            const cardCode = (card.code || '').toUpperCase().trim();
+            const baseCode = cardCode.replace(/-IT/i, '-EN').replace(/-[A-Z]{2}/, '-EN');
+            const targetRarity = normalizeRarity(card.rarity);
+            const targetExp = cleanStr(card.expansion);
 
-            // 1. Cerca corrispondenza esatta per codice carta (es. SOI-EN001 o STOR-EN040)
+            // Hierarchical Scoring Matcher (Codice + Rarità + Espansione)
             let match = null;
-            if (cardCode) {
-              const baseCode = cardCode.replace(/-IT/i, '-EN');
-              match = j.data.find(item => item.number && (
-                item.number.toUpperCase() === cardCode ||
-                item.number.toUpperCase() === baseCode ||
-                cardCode.includes(item.number.toUpperCase()) ||
-                item.number.toUpperCase().includes(baseCode)
-              ));
+            let bestScore = -1;
+
+            for (const item of j.data) {
+              let score = 0;
+              const itemNum = (item.number || '').toUpperCase().trim();
+              const itemRarity = normalizeRarity(item.rarity || item.name);
+              const itemExp = cleanStr(item.set_name);
+              const itemName = (item.name || '').toLowerCase();
+
+              // 1. Corrispondenza Codice / Numero Carta
+              if (itemNum) {
+                if (itemNum === cardCode || itemNum === baseCode) {
+                  score += 50;
+                } else if (cardCode.includes(itemNum) || itemNum.includes(baseCode)) {
+                  score += 35;
+                }
+              }
+
+              // 2. Corrispondenza Rarità (Cruciale per Ghost, Ultimate, QCR, Secret)
+              if (targetRarity) {
+                if (itemRarity === targetRarity || itemName.includes(targetRarity) || (item.rarity && item.rarity.toLowerCase().includes(targetRarity))) {
+                  score += 45;
+                } else if (targetRarity.includes(itemRarity) && itemRarity.length > 3) {
+                  score += 25;
+                } else {
+                  // Forte penalità se la carta è Ghost/Ultimate/QCR/Secret e l'item è Common/Ultra/Super
+                  score -= 25;
+                }
+              }
+
+              // 3. Corrispondenza Espansione
+              if (targetExp && itemExp) {
+                if (itemExp === targetExp || itemExp.includes(targetExp) || targetExp.includes(itemExp)) {
+                  score += 25;
+                }
+              }
+
+              if (score > bestScore) {
+                bestScore = score;
+                match = item;
+              }
             }
 
-            // 2. Fallback: Corrispondenza per rarità
-            if (!match && cardRarity) {
-              match = j.data.find(item => item.rarity && item.rarity.toLowerCase().includes(cardRarity));
-            }
-
-            // 3. Fallback: Primo risultato
-            if (!match) {
-              match = j.data[0];
+            // Safety threshold: se il punteggio è troppo basso, non sovrascrivere
+            if (bestScore < 30) {
+              match = null;
             }
 
             if (match && match.variants && match.variants.length > 0) {
@@ -1034,7 +1084,13 @@ function fetchJustTcgPrice(card, apiKey) {
                 nmVar = match.variants.find(v => (v.condition === 'Near Mint' || v.condition === 'Lightly Played') && (v.printing === '1st Edition' || v.id.includes('1st-edition')));
               }
               if (!nmVar) {
-                nmVar = match.variants.find(v => v.condition === 'Near Mint' || v.condition === 'Lightly Played') || match.variants[0];
+                nmVar = match.variants.find(v => v.condition === 'Near Mint');
+              }
+              if (!nmVar) {
+                nmVar = match.variants.find(v => v.condition === 'Lightly Played');
+              }
+              if (!nmVar && match.variants.length > 0) {
+                nmVar = match.variants[0];
               }
 
               const priceUsd = Number(nmVar.price) || Number(nmVar.avgPrice) || 0;
@@ -1044,7 +1100,7 @@ function fetchJustTcgPrice(card, apiKey) {
               const trendEuro = avgUsd > 0 ? parseFloat((avgUsd * 0.92).toFixed(2)) : (priceEuro > 0 ? parseFloat((priceEuro * 1.15).toFixed(2)) : 0);
 
               const stats = getJustTcgUsageStats();
-              console.log(`[JustTCG Result] Trovata "${match.name}" (${match.number || match.rarity}) -> Min €${priceEuro} | Trend €${trendEuro} [Chiamate usate: ${stats.count}/${stats.monthlyLimit}]`);
+              console.log(`[JustTCG Result] Trovata "${match.name}" (${match.number} - ${match.rarity}) -> Min €${priceEuro} | Trend €${trendEuro} [Chiamate usate: ${stats.count}/${stats.monthlyLimit}]`);
 
               resolve({
                 success: true,
