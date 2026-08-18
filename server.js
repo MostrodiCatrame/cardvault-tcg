@@ -1000,13 +1000,25 @@ function fetchJustTcgPrice(card, apiKey) {
 
             if (match && match.variants && match.variants.length > 0) {
               // Isola la variante Near Mint / Lightly Played
-              const nmVar = match.variants.find(v => v.condition === 'Near Mint' || v.condition === 'Lightly Played') || match.variants[0];
-              const priceUsd = nmVar.price || 0;
+              const is1st = (card.edition || '').toLowerCase().includes('1');
+              let nmVar = null;
+
+              if (is1st) {
+                nmVar = match.variants.find(v => (v.condition === 'Near Mint' || v.condition === 'Lightly Played') && (v.printing === '1st Edition' || v.id.includes('1st-edition')));
+              }
+              if (!nmVar) {
+                nmVar = match.variants.find(v => v.condition === 'Near Mint' || v.condition === 'Lightly Played') || match.variants[0];
+              }
+
+              const priceUsd = Number(nmVar.price) || Number(nmVar.avgPrice) || 0;
+              const avgUsd = Number(nmVar.avgPrice) || Number(nmVar.avgPrice30d) || (priceUsd > 0 ? priceUsd * 1.12 : 0);
+
               const priceEuro = priceUsd > 0 ? parseFloat((priceUsd * 0.92).toFixed(2)) : 0;
-              const trendEuro = priceEuro > 0 ? parseFloat((priceEuro * 1.15).toFixed(2)) : 0;
+              const trendEuro = avgUsd > 0 ? parseFloat((avgUsd * 0.92).toFixed(2)) : (priceEuro > 0 ? parseFloat((priceEuro * 1.15).toFixed(2)) : 0);
 
               const stats = getJustTcgUsageStats();
-              console.log(`[JustTCG Result] Trovata "${match.name}" (${match.number || match.rarity}) -> USD $${priceUsd} = EUR €${priceEuro}`);
+              console.log(`[JustTCG Result] Trovata "${match.name}" (${match.number || match.rarity}) -> Min €${priceEuro} | Trend €${trendEuro} [Chiamate usate: ${stats.count}/${stats.monthlyLimit}]`);
+
               resolve({
                 success: true,
                 cardName: match.name,
@@ -1015,28 +1027,28 @@ function fetchJustTcgPrice(card, apiKey) {
                 cmMin: priceEuro,
                 cmTrend: trendEuro,
                 tcgMin: priceUsd,
-                tcgTrend: parseFloat((priceUsd * 1.15).toFixed(2)),
+                tcgTrend: parseFloat((avgUsd).toFixed(2)),
                 usage: stats
               });
               return;
             }
           }
           console.log(`[JustTCG] Nessun prezzo trovato per "${cleanName}"`);
-          resolve({ success: false, reason: 'Nessun prezzo valido trovato da JustTCG' });
+          resolve({ success: false, reason: 'Nessun prezzo valido trovato da JustTCG', usage: getJustTcgUsageStats() });
         } catch(e) {
           console.error('[JustTCG Parse Error]', e.message);
-          resolve({ success: false, reason: e.message });
+          resolve({ success: false, reason: e.message, usage: getJustTcgUsageStats() });
         }
       });
     });
 
     req.on('error', e => {
       console.error('[JustTCG Network Error]', e.message);
-      resolve({ success: false, reason: e.message });
+      resolve({ success: false, reason: e.message, usage: getJustTcgUsageStats() });
     });
     req.setTimeout(8000, () => {
       req.destroy();
-      resolve({ success: false, reason: 'Timeout richiesta JustTCG' });
+      resolve({ success: false, reason: 'Timeout richiesta JustTCG', usage: getJustTcgUsageStats() });
     });
   });
 }
@@ -1078,6 +1090,8 @@ async function fetchMultiMarketplaceCard(card, justTcgKey) {
         logItem.newEbMin = ebEuro;
         updated.ebMin = ebEuro;
         updated.ebTrend = parseFloat((ebEuro * 1.2).toFixed(2));
+        updated.baseEbMin = ebEuro;
+        updated.baseEbTrend = updated.ebTrend;
         logItem.sources.push('eBay Base Floor');
       }
     }
@@ -1085,25 +1099,31 @@ async function fetchMultiMarketplaceCard(card, justTcgKey) {
 
   // Try JustTCG if configured
   const key = getJustTcgApiKey(justTcgKey);
+  let justUsage = null;
   if (key) {
     const justRes = await fetchJustTcgPrice(card, key);
+    if (justRes.usage) justUsage = justRes.usage;
     if (justRes.success) {
       if (justRes.cmMin > 0) {
         logItem.oldCmMin = updated.cmMin;
         logItem.newCmMin = justRes.cmMin;
         updated.cmMin = justRes.cmMin;
-        logItem.sources.push('JustTCG (Cardmarket Min)');
+        updated.baseCmMin = justRes.cmMin;
+        logItem.sources.push(`JustTCG Cardmarket Min €${justRes.cmMin}`);
       }
       if (justRes.cmTrend > 0) {
         logItem.oldCmTrend = updated.cmTrend;
         logItem.newCmTrend = justRes.cmTrend;
         updated.cmTrend = justRes.cmTrend;
-        logItem.sources.push('JustTCG (Cardmarket Trend)');
+        updated.baseCmTrend = justRes.cmTrend;
+        logItem.sources.push(`JustTCG Cardmarket Trend €${justRes.cmTrend}`);
       }
+    } else if (justRes.reason) {
+      logItem.sources.push(`JustTCG: ${justRes.reason}`);
     }
   }
 
-  return { success: true, card: updated, log: logItem };
+  return { success: true, card: updated, log: logItem, usage: justUsage || getJustTcgUsageStats() };
 }
 
 const mimeTypes = {
@@ -1495,6 +1515,7 @@ const server = http.createServer(async (req, res) => {
           success: true,
           cards: updatedCards,
           logs: logs,
+          usage: getJustTcgUsageStats(),
           message: `${updatedCards.length} carte sincronizzate con successo con YGOPRODeck, Immagini HD e Mercati Globali!`
         }));
       } catch (err) {

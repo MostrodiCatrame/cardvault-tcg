@@ -172,6 +172,7 @@
     const connected = await checkServerConnection();
     if (connected) {
       await syncFromServer();
+      await checkJustTcgQuota();
     }
   }
 
@@ -1937,6 +1938,11 @@
     if (btnCloseMpDone) btnCloseMpDone.addEventListener("click", () => { mpSyncModal.style.display = "none"; });
 
     if (btnOpenApiConfig) btnOpenApiConfig.addEventListener("click", openApiConfigModal);
+    const justtcgPill = document.getElementById("justtcg-quota-pill");
+    if (justtcgPill) {
+      justtcgPill.style.cursor = "pointer";
+      justtcgPill.addEventListener("click", openApiConfigModal);
+    }
     if (btnCloseApiModal) btnCloseApiModal.addEventListener("click", closeApiConfigModal);
     if (btnCancelApiModal) btnCancelApiModal.addEventListener("click", closeApiConfigModal);
     if (btnSaveApiConfig) btnSaveApiConfig.addEventListener("click", saveApiConfig);
@@ -2048,7 +2054,11 @@
       savePortfolioData();
       populateFilterDropdowns();
       render();
-      await checkJustTcgQuota();
+      if (result.usage) {
+        updateJustTcgQuotaUi(result.usage);
+      } else {
+        await checkJustTcgQuota();
+      }
       showToast(`🎉 ${result.cards.length} carte sincronizzate con successo con YGOPRODeck e Mercati!`);
     } catch(err) {
       if (mpProgressStatusText) mpProgressStatusText.textContent = `❌ Errore: ${err.message}`;
@@ -2081,7 +2091,11 @@
         savePortfolioData();
         await syncPortfolioWithDiskCsv(true);
         render();
-        await checkJustTcgQuota();
+        if (result.usage) {
+          updateJustTcgQuotaUi(result.usage);
+        } else {
+          await checkJustTcgQuota();
+        }
         showToast(`✅ "${card.name}" aggiornata con successo!`);
       }
     } catch(err) {
@@ -2186,19 +2200,21 @@
     const pillRemaining = document.getElementById("jqp-remaining");
     const pillBadge = document.getElementById("jqp-badge");
 
-    // Header Quota Pill: appears automatically when count >= 500
+    // Header Quota Pill: ALWAYS visible when JustTCG API key is configured!
     if (pill) {
-      if (usage.configured && (usage.count >= usage.warningThreshold || usage.isWarning)) {
-        pill.style.display = "flex";
+      if (usage.configured) {
+        pill.style.display = "inline-flex";
         if (pillRemaining) pillRemaining.textContent = `${usage.remaining}`;
         if (pillBadge) pillBadge.textContent = `${usage.count} / ${usage.monthlyLimit}`;
         pill.classList.remove("warning", "exceeded");
         if (usage.isExceeded) {
           pill.classList.add("exceeded");
-          pill.title = `⚠️ Limite mensile JustTCG raggiunto (${usage.count}/${usage.monthlyLimit}). Reset il ${usage.nextResetDate}`;
-        } else {
+          pill.title = `⚠️ Limite mensile JustTCG raggiunto (${usage.count}/${usage.monthlyLimit}). Reset il ${usage.nextResetDate}. Clicca per gestire le API.`;
+        } else if (usage.isWarning) {
           pill.classList.add("warning");
-          pill.title = `⚠️ Superata la soglia di 500 chiamate JustTCG. Rimaste: ${usage.remaining} (Reset il ${usage.nextResetDate})`;
+          pill.title = `⚠️ Superata la soglia di 500 chiamate JustTCG. Rimaste: ${usage.remaining} (Reset il ${usage.nextResetDate}). Clicca per gestire le API.`;
+        } else {
+          pill.title = `🌐 JustTCG API attiva: ${usage.count} usate questo mese (${usage.remaining} rimaste). Reset il ${usage.nextResetDate}. Clicca per gestire le API.`;
         }
       } else {
         pill.style.display = "none";
