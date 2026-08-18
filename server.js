@@ -63,6 +63,16 @@ function getDaysUntilReset() {
   return Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 }
 
+function getPossibleTokenPaths(filename) {
+  return [
+    path.join(ROOT_DIR, filename),
+    path.join(__dirname, filename),
+    path.join(process.cwd(), filename),
+    path.join('C:', 'Users', 'fgava', 'OneDrive', 'Documenti', 'Desktop', 'CardVault', 'CardVault_GitHub', filename),
+    path.join('C:', 'Users', 'fgava', 'yugioh-card-tracker', filename)
+  ];
+}
+
 function loadJustTcgUsage() {
   const monthKey = getCurrentMonthKey();
   let usage = {
@@ -73,27 +83,41 @@ function loadJustTcgUsage() {
     lastReset: new Date().toISOString()
   };
 
-  if (fs.existsSync(JUSTTCG_USAGE_FILE)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(JUSTTCG_USAGE_FILE, 'utf-8'));
-      if (data && data.currentMonth === monthKey) {
-        usage = { ...usage, ...data };
-      } else {
-        // Nuovo mese solare! Reset automatico del contatore
-        usage.currentMonth = monthKey;
-        usage.count = 0;
-        usage.lastReset = new Date().toISOString();
-        saveJustTcgUsage(usage);
-      }
-    } catch (e) {}
+  const possiblePaths = getPossibleTokenPaths('.justtcg_usage.json');
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+        if (data && data.currentMonth === monthKey) {
+          usage = { ...usage, ...data };
+          return usage;
+        } else if (data) {
+          // Nuovo mese solare! Reset automatico del contatore
+          usage.currentMonth = monthKey;
+          usage.count = 0;
+          usage.lastReset = new Date().toISOString();
+          saveJustTcgUsage(usage);
+          return usage;
+        }
+      } catch (e) {}
+    }
   }
   return usage;
 }
 
 function saveJustTcgUsage(usage) {
-  try {
-    fs.writeFileSync(JUSTTCG_USAGE_FILE, JSON.stringify(usage, null, 2), 'utf-8');
-  } catch (e) {}
+  const targetPaths = [
+    path.join(ROOT_DIR, '.justtcg_usage.json'),
+    path.join('C:', 'Users', 'fgava', 'OneDrive', 'Documenti', 'Desktop', 'CardVault', 'CardVault_GitHub', '.justtcg_usage.json'),
+    path.join('C:', 'Users', 'fgava', 'yugioh-card-tracker', '.justtcg_usage.json')
+  ];
+  for (const p of targetPaths) {
+    try {
+      if (fs.existsSync(path.dirname(p))) {
+        fs.writeFileSync(p, JSON.stringify(usage, null, 2), 'utf-8');
+      }
+    } catch (e) {}
+  }
 }
 
 function recordJustTcgCall() {
@@ -110,14 +134,17 @@ function getJustTcgApiKey(explicitKey) {
   if (JUSTTCG_API_KEY && JUSTTCG_API_KEY.trim()) {
     return JUSTTCG_API_KEY.trim();
   }
-  if (fs.existsSync(JUSTTCG_TOKEN_FILE)) {
-    try {
-      const saved = fs.readFileSync(JUSTTCG_TOKEN_FILE, 'utf-8').trim();
-      if (saved) {
-        JUSTTCG_API_KEY = saved;
-        return saved;
-      }
-    } catch (e) {}
+  const possiblePaths = getPossibleTokenPaths('.justtcg_token');
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const saved = fs.readFileSync(p, 'utf-8').trim();
+        if (saved) {
+          JUSTTCG_API_KEY = saved;
+          return saved;
+        }
+      } catch (e) {}
+    }
   }
   return '';
 }
