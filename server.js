@@ -244,21 +244,7 @@ let authConfig = {
 };
 
 function loadAuthConfig() {
-  // 1. Check environment variables first (ideal for Render.com)
-  const envPin = process.env.MASTER_PIN || process.env.ADMIN_PASSWORD || process.env.CARDVAULT_PIN;
-  const envSecret = process.env.TOTP_SECRET || process.env.AUTH_SECRET;
-  if (envPin && envSecret) {
-    const salt = process.env.AUTH_SALT || 'cardvault_master_salt_2026';
-    authConfig.enabled = true;
-    authConfig.salt = salt;
-    authConfig.passwordHash = hashPassword(envPin.trim(), salt);
-    authConfig.totpSecret = envSecret.trim().replace(/\s+/g, '');
-    authConfig.sessionSecret = process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET;
-    console.log('[CardVault] 2FA caricata e attiva da VARIABILI D\'AMBIENTE!');
-    return;
-  }
-
-  // 2. Check JSON configuration files on disk
+  // Check JSON configuration files on disk (if already configured by the user via web setup)
   const possiblePaths = [
     ...getPossibleTokenPaths('.auth_config.json'),
     path.join('C:', 'Users', 'fgava', '.cardvault_auth.json'),
@@ -1622,7 +1608,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (!pendingSetupSecret) {
-      pendingSetupSecret = authConfig.totpSecret || generateSecret(20);
+      pendingSetupSecret = generateSecret(16);
     }
     const secret = pendingSetupSecret;
     const otpAuthUrl = `otpauth://totp/CardVault:Fgavagnin?secret=${secret}&issuer=CardVault`;
