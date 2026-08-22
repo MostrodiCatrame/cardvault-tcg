@@ -156,6 +156,37 @@
       </div>
     </div>
 
+    <!-- Brand / TCG Universe Filter Bar -->
+    <div class="brand-filter-container">
+      <div class="brand-filter-bar" id="brand-filter-bar" role="tablist" aria-label="Filtra per gioco/brand">
+        <button type="button" class="brand-pill active" data-brand="all" id="brand-pill-all">
+          <span class="brand-pill-icon">🌐</span>
+          <span class="brand-pill-title">Tutti i Giochi</span>
+          <span class="brand-pill-count" id="brand-count-all">36</span>
+        </button>
+        <button type="button" class="brand-pill" data-brand="yugioh" id="brand-pill-yugioh">
+          <span class="brand-pill-icon">🎴</span>
+          <span class="brand-pill-title">Yu-Gi-Oh!</span>
+          <span class="brand-pill-count" id="brand-count-yugioh">36</span>
+        </button>
+        <button type="button" class="brand-pill" data-brand="pokemon" id="brand-pill-pokemon">
+          <span class="brand-pill-icon">⚡</span>
+          <span class="brand-pill-title">Pokémon</span>
+          <span class="brand-pill-count" id="brand-count-pokemon">0</span>
+        </button>
+        <button type="button" class="brand-pill" data-brand="magic" id="brand-pill-magic">
+          <span class="brand-pill-icon">🧙</span>
+          <span class="brand-pill-title">Magic: The Gathering</span>
+          <span class="brand-pill-count" id="brand-count-magic">0</span>
+        </button>
+        <button type="button" class="brand-pill" data-brand="onepiece" id="brand-pill-onepiece">
+          <span class="brand-pill-icon">🏴‍☠️</span>
+          <span class="brand-pill-title">One Piece</span>
+          <span class="brand-pill-count" id="brand-count-onepiece">0</span>
+        </button>
+      </div>
+    </div>
+
     <!-- ============================================== -->
     <!-- SECTION 1: PORTFOLIO (CARTE POSSEDUTE)        -->
     <!-- ============================================== -->
@@ -566,9 +597,21 @@
           <div class="form-section">
             <h3 class="form-section-title">Informazioni Carta</h3>
             
-            <div class="form-group">
-              <label for="form-name">Nome Carta *</label>
-              <input type="text" id="form-name" required placeholder="es. Uria, Signore delle Fiamme Impetuose">
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="form-game">Gioco / Brand *</label>
+                <select id="form-game" required>
+                  <option value="yugioh" selected>🎴 Yu-Gi-Oh!</option>
+                  <option value="pokemon">⚡ Pokémon</option>
+                  <option value="magic">🧙 Magic: The Gathering</option>
+                  <option value="onepiece">🏴‍☠️ One Piece</option>
+                  <option value="lorcana">✨ Disney Lorcana</option>
+                </select>
+              </div>
+              <div class="form-group flex-2">
+                <label for="form-name">Nome Carta *</label>
+                <input type="text" id="form-name" required placeholder="es. Uria / Charizard / Black Lotus">
+              </div>
             </div>
 
             <div class="form-group">
@@ -767,9 +810,21 @@
           <div class="form-section">
             <h3 class="form-section-title">Carta Desiderata</h3>
             
-            <div class="form-group">
-              <label for="want-form-name">Nome Carta *</label>
-              <input type="text" id="want-form-name" required placeholder="es. Drago Bianco Occhi Blu">
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="want-form-game">Gioco / Brand *</label>
+                <select id="want-form-game" required>
+                  <option value="yugioh" selected>🎴 Yu-Gi-Oh!</option>
+                  <option value="pokemon">⚡ Pokémon</option>
+                  <option value="magic">🧙 Magic: The Gathering</option>
+                  <option value="onepiece">🏴‍☠️ One Piece</option>
+                  <option value="lorcana">✨ Disney Lorcana</option>
+                </select>
+              </div>
+              <div class="form-group flex-2">
+                <label for="want-form-name">Nome Carta *</label>
+                <input type="text" id="want-form-name" required placeholder="es. Drago Bianco / Charizard / Black Lotus">
+              </div>
             </div>
 
             <div class="form-group">

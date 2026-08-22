@@ -193,4 +193,22 @@ Tutte le operazioni effettuate nell'app vengono scritte in tempo reale nel file:
 
 ---
 
-*Documentazione aggiornata per CardVault TCG • Master Collection 36 Carte • Realizzato per Fgavagnin.*
+## 12. 🌌 Supporto Multi-TCG & Separazione per Brand (Pokémon, Magic, Yu-Gi-Oh!)
+
+CardVault supporta l'universo multi-gioco collezionistico consentendo di gestire nello stesso account collezioni separate e filtrate per brand:
+
+### 🎮 Giochi & TCG Supportati
+1. **🎴 Yu-Gi-Oh!**: Database YGOPRODeck + CardTrader Blueprint (Game ID 4) + Cardmarket `/YuGiOh/`
+2. **⚡ Pokémon**: Artwork HD CardTrader CDN + Cardmarket `/Pokemon/` + eBay Pokémon
+3. **🧙 Magic: The Gathering**: Database Scryfall API HD scansioni + CardTrader Blueprint (Game ID 1) + Cardmarket `/Magic/` + Scryfall Oracle Text & Mana
+4. **🏴‍☠️ One Piece Card Game**: CardTrader (Game ID 15) + Cardmarket `/OnePiece/`
+5. **✨ Disney Lorcana**: CardTrader (Game ID 18) + Cardmarket `/Lorcana/`
+
+### 🏷️ Filtro Rapido per Brand (Pills Navigation Bar)
+- Una barra interattiva posizionata nella testata consente di passare con 1 clic dalla vista **🌐 Tutti i Giochi** ai singoli brand (**🎴 Yu-Gi-Oh!**, **⚡ Pokémon**, **🧙 Magic: The Gathering**, **🏴‍☠️ One Piece**).
+- I contatori su ciascuna pillola e tutti i **KPI finanziari (Valore Stimato, Trend, Spesa Minima, MVP)** si ricalcolano istantaneamente isolando il brand selezionato.
+- Ogni riga della tabella e ogni scheda della griglia mostrano il badge colorato corrispondente al brand (`[🎴 YGO]`, `[⚡ PKM]`, `[🧙 MTG]`, etc.).
+
+---
+
+*Documentazione aggiornata per CardVault TCG Multi-TCG Edition • Master Collection • Realizzato per Fgavagnin.*

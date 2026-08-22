@@ -440,6 +440,16 @@
   }
 
   const STORAGE_KEY_AUTH_TOKEN = "cardvault_session_token_v2";
+  let currentBrandFilter = "all";
+
+  function getGameBadgeHtml(gameStr) {
+    const g = (gameStr || "yugioh").toLowerCase();
+    if (g === "pokemon") return '<span class="brand-badge badge-pokemon">⚡ Pokémon</span>';
+    if (g === "magic") return '<span class="brand-badge badge-magic">🧙 Magic</span>';
+    if (g === "onepiece") return '<span class="brand-badge badge-onepiece">🏴‍☠️ One Piece</span>';
+    if (g === "lorcana") return '<span class="brand-badge badge-lorcana">✨ Lorcana</span>';
+    return '<span class="brand-badge badge-yugioh">🎴 Yu-Gi-Oh!</span>';
+  }
 
   function getAuthToken() {
     return localStorage.getItem(STORAGE_KEY_AUTH_TOKEN) || "";
@@ -537,6 +547,7 @@
 
   
   function getCardUrls(card) {
+    const game = (card.game || "yugioh").toLowerCase();
     const itaName = card.name || "";
     const engName = card.englishName || card.name || "";
     const code = card.code || "";
@@ -555,24 +566,42 @@
 
     const cmLangParam = `&idLanguage=${cmLangId}`;
 
+    let cmGamePath = 'YuGiOh';
+    let ebayPrefix = 'YuGiOh';
+    if (game === 'pokemon') {
+      cmGamePath = 'Pokemon';
+      ebayPrefix = 'Pokemon';
+    } else if (game === 'magic') {
+      cmGamePath = 'Magic';
+      ebayPrefix = 'Magic The Gathering';
+    } else if (game === 'onepiece') {
+      cmGamePath = 'OnePiece';
+      ebayPrefix = 'One Piece Card';
+    } else if (game === 'lorcana') {
+      cmGamePath = 'Lorcana';
+      ebayPrefix = 'Disney Lorcana';
+    }
+
     return {
       itaName,
       engName,
       code,
-      cmItaUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(itaName)}${cmLangParam}`,
-      cmCodeUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(code)}${cmLangParam}`,
-      cmEngUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(engName)}${cmLangParam}`,
-      cmBestUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(code || engName || itaName)}${cmLangParam}`,
+      game,
+      cmItaUrl: `https://www.cardmarket.com/it/${cmGamePath}/Products/Search?searchString=${encodeURIComponent(itaName)}${cmLangParam}`,
+      cmCodeUrl: `https://www.cardmarket.com/it/${cmGamePath}/Products/Search?searchString=${encodeURIComponent(code)}${cmLangParam}`,
+      cmEngUrl: `https://www.cardmarket.com/it/${cmGamePath}/Products/Search?searchString=${encodeURIComponent(engName)}${cmLangParam}`,
+      cmBestUrl: `https://www.cardmarket.com/it/${cmGamePath}/Products/Search?searchString=${encodeURIComponent(code || engName || itaName)}${cmLangParam}`,
       
       ctItaUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(itaName)}`,
       ctCodeUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(code)}`,
       ctEngUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(engName)}`,
       ctBestUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(engName || itaName)}`,
       
-      ebUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + (code ? code + ' ' : '') + engName)}&LH_BIN=1`,
-      ebItaUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + (code ? code + ' ' : '') + itaName)}&LH_BIN=1`,
+      ebUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent(ebayPrefix + ' ' + (code ? code + ' ' : '') + engName)}&LH_BIN=1`,
+      ebItaUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent(ebayPrefix + ' ' + (code ? code + ' ' : '') + itaName)}&LH_BIN=1`,
       
-      ygoUrl: card.ygoprodeckUrl || `https://ygoprodeck.com/card/${cleanSlug}`
+      ygoUrl: card.ygoprodeckUrl || (game === 'yugioh' ? `https://ygoprodeck.com/card/${cleanSlug}` : null),
+      scryfallUrl: card.scryfallUrl || (game === 'magic' ? `https://scryfall.com/search?q=${encodeURIComponent(engName)}` : null)
     };
   }
 
@@ -887,6 +916,10 @@
   // ==========================================
   function getFilteredCards() {
     let result = cards.filter(card => {
+      if (currentBrandFilter !== "all") {
+        const cardGame = (card.game || "yugioh").toLowerCase();
+        if (cardGame !== currentBrandFilter) return false;
+      }
       if (portfolioFilters.search) {
         const query = portfolioFilters.search.toLowerCase().trim();
         const searchStr = `${card.name} ${card.code} ${card.expansion} ${card.rarity} ${card.edition} ${card.notes || ""}`.toLowerCase();
@@ -944,6 +977,24 @@
         topCard = card;
       }
     });
+
+    // Update brand counters
+    const ygoCount = cards.filter(c => (c.game || "yugioh").toLowerCase() === "yugioh").length;
+    const pkmCount = cards.filter(c => (c.game || "").toLowerCase() === "pokemon").length;
+    const mtgCount = cards.filter(c => (c.game || "").toLowerCase() === "magic").length;
+    const opCount = cards.filter(c => (c.game || "").toLowerCase() === "onepiece").length;
+
+    const elCountAll = document.getElementById("brand-count-all");
+    const elCountYgo = document.getElementById("brand-count-yugioh");
+    const elCountPkm = document.getElementById("brand-count-pokemon");
+    const elCountMtg = document.getElementById("brand-count-magic");
+    const elCountOp = document.getElementById("brand-count-onepiece");
+
+    if (elCountAll) elCountAll.textContent = cards.length;
+    if (elCountYgo) elCountYgo.textContent = ygoCount;
+    if (elCountPkm) elCountPkm.textContent = pkmCount;
+    if (elCountMtg) elCountMtg.textContent = mtgCount;
+    if (elCountOp) elCountOp.textContent = opCount;
 
     kpiTotalTrend.textContent = formatEuro(totalTrend);
     kpiTotalMin.textContent = formatEuro(totalMin);
@@ -1023,7 +1074,9 @@
           <div style="display: flex; align-items: center; gap: 8px;">
             ${card.imageUrl ? `<img src="${card.imageUrl}" alt="${escapeHtml(card.name)}" class="table-art-thumb" data-id="${card.id}" title="Clicca per ingrandire la carta in HD" />` : ''}
             <div>
-              <div class="card-cell-name" style="cursor: pointer;" data-lightbox-id="${card.id}">${escapeHtml(card.name)}</div>
+              <div class="card-cell-name" style="cursor: pointer;" data-lightbox-id="${card.id}">
+                ${getGameBadgeHtml(card.game)}<strong>${escapeHtml(card.name)}</strong>
+              </div>
           ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
           <div class="card-cell-sub">${escapeHtml(card.edition || "")}</div>
           ${card.notes ? `<div class="card-cell-notes">${escapeHtml(card.notes)}</div>` : ""}
@@ -1181,7 +1234,9 @@
           <div class="card-item-content">
             <div class="card-item-header">
               <div>
-                <div class="card-item-name" style="cursor: pointer;" data-lightbox-id="${card.id}">${escapeHtml(card.name)}</div>
+                <div class="card-item-name" style="cursor: pointer;" data-lightbox-id="${card.id}">
+                  ${getGameBadgeHtml(card.game)}<strong>${escapeHtml(card.name)}</strong>
+                </div>
                 ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
                 <div class="card-cell-sub">${escapeHtml(card.expansion)} • <strong>${escapeHtml(card.code)}</strong></div>
               </div>
@@ -1266,6 +1321,11 @@
   // ==========================================
   function getFilteredWants() {
     let result = wants.filter(want => {
+      if (currentBrandFilter !== "all") {
+        const wantGame = (want.game || "yugioh").toLowerCase();
+        if (wantGame !== currentBrandFilter) return false;
+      }
+
       const best = getBestWantOffer(want);
       const isDeal = best.price > 0 && best.price <= want.targetPrice;
 
@@ -1398,7 +1458,7 @@
       row.innerHTML = `
         <td class="col-num">${index + 1}</td>
         <td class="col-card">
-          <div class="card-cell-name">${escapeHtml(want.name)}</div>
+          <div class="card-cell-name">${getGameBadgeHtml(want.game)}<strong>${escapeHtml(want.name)}</strong></div>
           ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(want.englishName)}</span></div>` : ''}
           <div class="card-cell-sub">${escapeHtml(want.edition || "")}</div>
           ${want.notes ? `<div class="card-cell-notes">${escapeHtml(want.notes)}</div>` : ""}
@@ -1531,7 +1591,7 @@
         <div>
           <div class="card-item-header">
             <div>
-              <div class="card-item-name">${escapeHtml(want.name)}</div>
+              <div class="card-item-name">${getGameBadgeHtml(want.game)}<strong>${escapeHtml(want.name)}</strong></div>
               ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(want.englishName)}</span></div>` : ''}
               <div class="card-cell-sub">${escapeHtml(want.expansion)} • <strong>${escapeHtml(want.code)}</strong></div>
             </div>
@@ -2550,6 +2610,7 @@
 
       // Populate Form Fields
       if (isWant) {
+        if (data.game) document.getElementById("want-form-game").value = data.game;
         document.getElementById("want-form-name").value = data.name || data.englishName;
         document.getElementById("want-form-english-name").value = data.englishName || "";
         document.getElementById("want-form-set").value = data.expansion || "";
@@ -2589,6 +2650,7 @@
         document.getElementById("form-want-level").value = data.level !== null && data.level !== undefined ? data.level : "";
         document.getElementById("form-want-attribute").value = data.attribute || "";
       } else {
+        if (data.game) document.getElementById("form-game").value = data.game;
         document.getElementById("form-name").value = data.name || data.englishName;
         document.getElementById("form-english-name").value = data.englishName || "";
         document.getElementById("form-set").value = data.expansion || "";
@@ -2627,11 +2689,11 @@
 
       if (statusMsgEl) {
         statusMsgEl.className = "autofill-status-msg success";
-        statusMsgEl.innerHTML = `✅ <strong>"${escapeHtml(data.englishName)}"</strong> caricata! Set: ${escapeHtml(data.expansion)} (${escapeHtml(data.code)}) • ${escapeHtml(data.rarity)} • CT Min: €${data.ctMin ? data.ctMin.toFixed(2) : '0.00'}`;
+        statusMsgEl.innerHTML = `✅ <strong>"${escapeHtml(data.englishName)}"</strong> [${(data.game || 'TCG').toUpperCase()}] caricata! Set: ${escapeHtml(data.expansion)} (${escapeHtml(data.code)}) • ${escapeHtml(data.rarity)} • CT Min: €${data.ctMin ? data.ctMin.toFixed(2) : '0.00'}`;
         statusMsgEl.style.display = "flex";
       }
 
-      showToast(`✨ Dati e quotazioni caricati con successo da CardTrader & YGOPRODeck!`);
+      showToast(`✨ Dati e quotazioni caricati con successo da CardTrader & Database TCG!`);
     } catch(err) {
       if (statusMsgEl) {
         statusMsgEl.className = "autofill-status-msg error";
@@ -2665,6 +2727,7 @@
         tsEl.innerHTML = `🕒 <strong>Ultima modifica:</strong> ${formatFullDate(card.updatedAt)}`;
       }
 
+      document.getElementById("form-game").value = card.game || "yugioh";
       document.getElementById("form-autofill-url").value = card.cardTraderUrl || (card.blueprintId ? String(card.blueprintId) : "");
       document.getElementById("form-card-id").value = card.id;
       document.getElementById("form-card-blueprint-id").value = card.blueprintId || "";
@@ -2705,6 +2768,7 @@
         tsEl.style.display = "none";
       }
       cardModalTitle.textContent = "Aggiungi Nuova Carta nel Portfolio";
+      document.getElementById("form-game").value = currentBrandFilter !== "all" ? currentBrandFilter : "yugioh";
       document.getElementById("form-autofill-url").value = "";
       document.getElementById("form-card-id").value = "";
       document.getElementById("form-card-blueprint-id").value = "";
@@ -2721,6 +2785,7 @@
       document.getElementById("form-card-level").value = "";
       document.getElementById("form-card-attribute").value = "";
 
+      document.getElementById("form-name").value = "";
       document.getElementById("form-english-name").value = "";
       document.getElementById("form-lang").value = "Italiano (ITA)";
       document.getElementById("form-condition").value = "Near Mint";
@@ -2740,6 +2805,7 @@
   async function handleCardFormSubmit(e) {
     e.preventDefault();
 
+    const game = document.getElementById("form-game").value || "yugioh";
     const name = document.getElementById("form-name").value.trim();
     const englishName = document.getElementById("form-english-name").value.trim() || name;
     const expansion = document.getElementById("form-set").value.trim();
@@ -2785,6 +2851,7 @@
       if (index !== -1) {
         cards[index] = {
           ...cards[index],
+          game,
           name, englishName, expansion, code, rarity, edition, language, condition, notes,
           blueprintId, cardTraderUrl, ygoprodeckUrl, imageUrl, imageUrlLarge, imageUrlCropped,
           cardType, desc, archetype, atk, def, level, attribute,
@@ -2803,6 +2870,7 @@
       const newCard = {
         id: maxId + 1,
         num: maxNum + 1,
+        game,
         name, englishName, expansion, code, rarity, edition, language, condition, notes,
         blueprintId, cardTraderUrl, ygoprodeckUrl, imageUrl, imageUrlLarge, imageUrlCropped,
         cardType, desc, archetype, atk, def, level, attribute,
@@ -2859,6 +2927,7 @@
         tsEl.innerHTML = `🕒 <strong>Ultima modifica:</strong> ${formatFullDate(want.updatedAt)}`;
       }
 
+      document.getElementById("want-form-game").value = want.game || "yugioh";
       document.getElementById("want-form-autofill-url").value = want.cardTraderUrl || (want.blueprintId ? String(want.blueprintId) : "");
       document.getElementById("form-want-id").value = want.id;
       document.getElementById("form-want-blueprint-id").value = want.blueprintId || "";
@@ -2897,6 +2966,7 @@
         tsEl.style.display = "none";
       }
       wantModalTitle.textContent = "Aggiungi Carta alla Lista Wants";
+      document.getElementById("want-form-game").value = currentBrandFilter !== "all" ? currentBrandFilter : "yugioh";
       document.getElementById("want-form-autofill-url").value = "";
       document.getElementById("form-want-id").value = "";
       document.getElementById("form-want-blueprint-id").value = "";
@@ -2931,6 +3001,7 @@
   async function handleWantFormSubmit(e) {
     e.preventDefault();
 
+    const game = document.getElementById("want-form-game").value || "yugioh";
     const name = document.getElementById("want-form-name").value.trim();
     const englishName = document.getElementById("want-form-english-name").value.trim() || name;
     const expansion = document.getElementById("want-form-set").value.trim();
@@ -2952,9 +3023,9 @@
     const cardType = document.getElementById("form-want-card-type").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.cardType : "");
     const desc = document.getElementById("form-want-desc").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.desc : "");
     const archetype = document.getElementById("form-want-archetype").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.archetype : "");
-    const atkVal = document.getElementById("form-want-atk").value;
-    const defVal = document.getElementById("form-want-def").value;
-    const levelVal = document.getElementById("form-want-level").value;
+    const atkVal = document.getElementById("form-want-atk") ? document.getElementById("form-want-atk").value : "";
+    const defVal = document.getElementById("form-want-def") ? document.getElementById("form-want-def").value : "";
+    const levelVal = document.getElementById("form-want-level") ? document.getElementById("form-want-level").value : "";
     const attribute = document.getElementById("form-want-attribute").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.attribute : "");
 
     const atk = atkVal !== "" ? parseInt(atkVal, 10) : (editingWantId ? wants.find(w => w.id === editingWantId)?.atk : null);
@@ -2974,6 +3045,7 @@
       if (index !== -1) {
         wants[index] = {
           ...wants[index],
+          game,
           name, englishName, expansion, code, rarity, edition, language, targetCondition, targetPrice, notes,
           blueprintId, cardTraderUrl, ygoprodeckUrl, imageUrl, imageUrlLarge, imageUrlCropped,
           cardType, desc, archetype, atk, def, level, attribute,
@@ -2987,6 +3059,7 @@
       const maxId = wants.reduce((max, w) => Math.max(max, w.id || 0), 100);
       const newWant = {
         id: maxId + 1,
+        game,
         name, englishName, expansion, code, rarity, edition, language, targetCondition, targetPrice, notes,
         blueprintId, cardTraderUrl, ygoprodeckUrl, imageUrl, imageUrlLarge, imageUrlCropped,
         cardType, desc, archetype, atk, def, level, attribute,
@@ -3530,8 +3603,21 @@
     }
   }
 
+  function initBrandFilterEvents() {
+    const pills = document.querySelectorAll(".brand-pill");
+    pills.forEach(pill => {
+      pill.addEventListener("click", () => {
+        pills.forEach(p => p.classList.remove("active"));
+        pill.classList.add("active");
+        currentBrandFilter = pill.getAttribute("data-brand") || "all";
+        render();
+      });
+    });
+  }
+
   function startApplication() {
     init();
+    initBrandFilterEvents();
     init2FAEvents();
     check2FAStatus();
     checkJustTcgQuota();
