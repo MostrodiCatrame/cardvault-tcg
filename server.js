@@ -232,14 +232,19 @@ function hashPassword(password, salt) {
   return crypto.pbkdf2Sync(pwd, s, 10000, 64, 'sha512').toString('hex');
 }
 
-let pendingSetupSecret = null;
+// ==========================================
+// MASTER 2FA SECURITY CONFIGURATION (PERMANENTE A CODICE)
+// ==========================================
+const DEFAULT_MASTER_PIN = '300800';
+const DEFAULT_TOTP_SECRET = 'CARDVAULT77FGAV2';
+const DEFAULT_SALT = 'cardvault_master_salt_fgavagnin_2026';
 const DEFAULT_SESSION_SECRET = 'cardvault_session_secret_hmac_master_key_2026';
 
 let authConfig = {
-  enabled: false,
-  passwordHash: null,
-  salt: null,
-  totpSecret: null,
+  enabled: true,
+  passwordHash: hashPassword(DEFAULT_MASTER_PIN, DEFAULT_SALT),
+  salt: DEFAULT_SALT,
+  totpSecret: DEFAULT_TOTP_SECRET,
   sessionSecret: process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET
 };
 
