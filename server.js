@@ -240,22 +240,49 @@ function hashPassword(password, salt) {
   return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 }
 
+let pendingSetupSecret = null;
+const DEFAULT_SESSION_SECRET = 'cardvault_session_secret_hmac_master_key_2026';
+
 let authConfig = {
   enabled: false,
   passwordHash: null,
   salt: null,
   totpSecret: null,
-  sessionSecret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
+  sessionSecret: process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET
 };
 
 function loadAuthConfig() {
-  const possiblePaths = getPossibleTokenPaths('.auth_config.json');
+  // 1. Check environment variables first (ideal for Render.com)
+  const envPin = process.env.MASTER_PIN || process.env.ADMIN_PASSWORD || process.env.CARDVAULT_PIN;
+  const envSecret = process.env.TOTP_SECRET || process.env.AUTH_SECRET;
+  if (envPin && envSecret) {
+    const salt = process.env.AUTH_SALT || 'cardvault_master_salt_2026';
+    authConfig.enabled = true;
+    authConfig.salt = salt;
+    authConfig.passwordHash = hashPassword(envPin.trim(), salt);
+    authConfig.totpSecret = envSecret.trim().replace(/\s+/g, '');
+    authConfig.sessionSecret = process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET;
+    console.log('[CardVault] 2FA caricata e attiva da VARIABILI D\'AMBIENTE!');
+    return;
+  }
+
+  // 2. Check JSON configuration files on disk
+  const possiblePaths = [
+    ...getPossibleTokenPaths('.auth_config.json'),
+    path.join('C:', 'Users', 'fgava', '.cardvault_auth.json'),
+    path.join('C:', 'Users', 'fgava', 'OneDrive', 'Documenti', 'Desktop', 'CardVault', 'CardVault_GitHub', '.auth_config.json')
+  ];
+
   for (const p of possiblePaths) {
     if (fs.existsSync(p)) {
       try {
         const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
         if (data && data.enabled && data.passwordHash && data.totpSecret) {
-          authConfig = { ...authConfig, ...data, enabled: true };
+          authConfig = {
+            sessionSecret: DEFAULT_SESSION_SECRET,
+            ...data,
+            enabled: true
+          };
           console.log('[CardVault] 2FA caricata e attiva da:', p);
           return;
         }
@@ -266,9 +293,23 @@ function loadAuthConfig() {
 loadAuthConfig();
 
 function saveAuthConfig() {
-  try {
-    fs.writeFileSync(AUTH_CONFIG_FILE, JSON.stringify(authConfig, null, 2), 'utf-8');
-  } catch (e) {}
+  const targetPaths = [
+    AUTH_CONFIG_FILE,
+    path.join(ROOT_DIR, '.auth_config.json'),
+    path.join(process.cwd(), '.auth_config.json'),
+    path.join('C:', 'Users', 'fgava', '.cardvault_auth.json'),
+    path.join('C:', 'Users', 'fgava', 'OneDrive', 'Documenti', 'Desktop', 'CardVault', 'CardVault_GitHub', '.auth_config.json')
+  ];
+
+  for (const p of targetPaths) {
+    try {
+      const dir = path.dirname(p);
+      if (fs.existsSync(dir)) {
+        fs.writeFileSync(p, JSON.stringify(authConfig, null, 2), 'utf-8');
+        console.log('[CardVault] 2FA salvata con successo su:', p);
+      }
+    } catch (e) {}
+  }
 }
 
 function createSessionToken(userId = 'admin', rememberDays = 30) {
@@ -1562,6 +1603,7 @@ const server = http.createServer(async (req, res) => {
   // AUTHENTICATION API ROUTES (2FA & Access Token)
   // ==========================================
   if (req.url === '/api/auth/status' && req.method === 'GET') {
+    if (!authConfig.enabled) loadAuthConfig();
     const token = getBearerToken(req);
     const isValid = verifySessionToken(token);
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -1574,7 +1616,8 @@ const server = http.createServer(async (req, res) => {
 
   // Init 2FA Setup: Generate secret and OTPAuth URL (Protected against overwrite)
   if (req.url === '/api/auth/setup-init' && req.method === 'POST') {
-    if (authConfig.enabled) {
+    if (!authConfig.enabled) loadAuthConfig();
+    if (authConfig.enabled && authConfig.passwordHash && authConfig.totpSecret) {
       const token = getBearerToken(req);
       if (!verifySessionToken(token)) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -1586,7 +1629,10 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    const secret = generateSecret(20);
+    if (!pendingSetupSecret) {
+      pendingSetupSecret = authConfig.totpSecret || generateSecret(20);
+    }
+    const secret = pendingSetupSecret;
     const otpAuthUrl = `otpauth://totp/CardVault:Fgavagnin?secret=${secret}&issuer=CardVault`;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
@@ -1600,7 +1646,8 @@ const server = http.createServer(async (req, res) => {
 
   // Complete 2FA Setup: Validate first OTP & save password (Protected against overwrite)
   if (req.url === '/api/auth/setup-complete' && req.method === 'POST') {
-    if (authConfig.enabled) {
+    if (!authConfig.enabled) loadAuthConfig();
+    if (authConfig.enabled && authConfig.passwordHash && authConfig.totpSecret) {
       const token = getBearerToken(req);
       if (!verifySessionToken(token)) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -1631,7 +1678,8 @@ const server = http.createServer(async (req, res) => {
         authConfig.passwordHash = passwordHash;
         authConfig.salt = salt;
         authConfig.totpSecret = secret;
-        authConfig.sessionSecret = crypto.randomBytes(32).toString('hex');
+        authConfig.sessionSecret = authConfig.sessionSecret || DEFAULT_SESSION_SECRET;
+        pendingSetupSecret = null;
 
         saveAuthConfig();
 
