@@ -83,15 +83,32 @@ CardVault si appoggia a **YGOPRODeck** (100% gratuito, senza chiavi API, fino a 
 
 ## 5. Integrazione Multi-Marketplace (Cardmarket, JustTCG, eBay)
 
-- **`🌐 Sincronizza Mercati Globali`**: Nuovo pulsante dedicato per allineare in batch le immagini HD, i testi degli effetti e i prezzi base di YGOPRODeck, eBay e Cardmarket.
-- **Supporto JustTCG (Opzionale)**: Nel modale `⚙️ API` puoi inserire la tua chiave di *justtcg.com* (1.000 chiamate/mese gratis) per estrarre le quotazioni specifiche di Cardmarket superando i blocchi Cloudflare Turnstile/403.
-- **Link Intelligenti Localizzati**:
-  - Cardmarket: ricerca mirata per nome internazionale e codice espansione.
-  - eBay.it: query ottimizzata con filtro *Compralo Subito* abilitato.
+- **`🌐 Sincronizza Cardmarket & Mercati`**: Pulsante dedicato per allineare in batch o per singola carta le immagini HD, i testi degli effetti e i prezzi base di YGOPRODeck, eBay e Cardmarket.
+- **Integrazione JustTCG con Hierarchical Scoring Matcher**:
+  - Risolto il rischio di mismatch tra diverse rarità dello stesso set (es. *Ghost Rare* vs *Ultra Rare* nello stesso set STOR-040).
+  - Algoritmo di scoring ponderato che abbina con precisione **Codice Carta (+50 pt)**, **Rarità Esatta (+45 pt)** ed **Espansione (+25 pt)** con penalità di sicurezza per evitare di sovrascrivere pezzi da collezione con ristampe o stampe comuni.
+  - Conversione automatica USD ➔ EUR per le varianti *Near Mint* e *1ª Edizione*.
+- **Monitoraggio Quota Mensile JustTCG**:
+  - Badge interattivo **🌐 JustTCG** sempre visibile nell'header (`X / 1000 usate`, `Y rimaste`).
+  - Tracciamento persistente su file `.justtcg_usage.json` con soglia di allerta (> 500 chiamate) e reset automatico al 1° del mese solare.
+  - Multi-path fallback per funzionamento trasparente sia in locale che su Cloud Render.
 
 ---
 
-## 6. Sistema di Sicurezza 2FA (Two-Factor Authentication)
+## 6. Sistema di Timestamp & Smart Merge (Persistenza Sicura)
+
+- **Tracciamento Temporale a Singola Carta (`updatedAt`)**:
+  - Ogni carta e want possiede un timestamp ISO 8601 univoco aggiornato ad ogni modifica manuale, sincronizzazione API o ricalcolo.
+  - Salvataggio e propagazione automatica su `data_portfolio.json`, `cards-data.js` e sul file CSV master.
+- **Algoritmo di Smart Merge**:
+  - All'apertura dell'applicazione, il client confronta i timestamp locali del browser (`localStorage`) con quelli del server/disco.
+  - La versione con timestamp più recente per ciascuna carta vince sempre, prevenendo la perdita di modifiche e garantendo che le carte mostrino sempre i dati più aggiornati.
+- **Filtri di Ordinamento per Data**:
+  - Aggiunti i criteri di ordinamento `🕒 Modifica più recente` e `🕒 Modifica meno recente` nei selettori di ordinamento Portfolio e Wants.
+
+---
+
+## 7. Sistema di Sicurezza 2FA (Two-Factor Authentication)
 
 Per proteggere la collezione quando pubblicata online (su Render o altri server Cloud):
 1. **Master Password**: Cifratura `PBKDF2` con `SHA-512` e Salt crittografico a 16 byte.
@@ -101,7 +118,7 @@ Per proteggere la collezione quando pubblicata online (su Render o altri server 
 
 ---
 
-## 7. Sincronizzazione File CSV su Disco
+## 8. Sincronizzazione File CSV su Disco
 
 Tutte le operazioni effettuate nell'app vengono scritte in tempo reale nel file:  
 📁 **`C:\Users\fgava\Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv`**
@@ -112,58 +129,63 @@ Tutte le operazioni effettuate nell'app vengono scritte in tempo reale nel file:
 
 ---
 
-## 8. Guida all'Uso Quotidiano (Locale e Cloud)
+## 9. Guida all'Uso Quotidiano (Locale e Cloud)
 
 ### 🖥️ A. Utilizzo in Locale sul PC
 1. Fai doppio clic su **`CardVault_TCG.bat`** sul tuo Desktop.
 2. Il server si avvierà in background e aprirà il browser su **`http://localhost:3000`**.
 
 ### 📱 B. Utilizzo su Cloud & Telefono (Render.com)
-1. Apri la cartella **`C:\Users\fgava\Desktop\CardVault_GitHub`**.
-2. Carica i file sul tuo repository GitHub.
-3. Render eseguirà il redeploy automatico in ~60 secondi e potrai accedere al tuo link pubblico da smartphone ovunque ti trovi!
+1. Apri la dashboard del tuo servizio Render.
+2. Assicurati che nelle variabili d'ambiente (**Environment**) sia impostata la chiave:
+   - `JUSTTCG_API_KEY`: `tcg_f0527f27d0f34dfa9c3480fa16e4e286`
+3. Apri **`https://cardvault-tcg.onrender.com`** da qualsiasi smartphone o browser per consultare e sincronizzare la collezione ovunque!
 
 ---
 
-## 9. Struttura dei File di Progetto
+## 10. Struttura dei File di Progetto
 
 | File | Scopo e Contenuto |
 | :--- | :--- |
-| **`server.js`** | Server HTTP Node.js. Gestisce sync CSV, CardTrader API v2 a blueprint con filtro ITA/NM, YGOPRODeck, JustTCG API con quota tracker mensile e 2FA TOTP. |
-| **`index.html`** | Struttura dell'interfaccia: pulsanti dedicati CardTrader e Mercati Globali, pillola contatore quota JustTCG, modali API, Lightbox HD e 2FA. |
-| **`style.css`** | Design System Dark Luxury (Outfit + Plus Jakarta Sans), palette HSL, Collector Grid, Lightbox, dropup automatici e monitor quota. |
-| **`app.js`** | Motore frontend: gestione collezione, calcolo medie, filtri, eventi, modali, monitor quota JustTCG e chiamate API. |
-| **`cards-data.js`** | Database iniziale master con le **36 carte certificate** (Blueprint CT + Artwork YGOPRODeck). |
+| **`server.js`** | Server HTTP Node.js. Gestisce sync CSV, CardTrader API v2 a blueprint con filtro ITA/NM, lookup automatico 1-Click (`/api/cardtrader/lookup-blueprint`), YGOPRODeck, JustTCG API con quota tracker mensile, matching gerarchico per rarità e 2FA TOTP. |
+| **`index.html`** | Struttura dell'interfaccia: box 1-Click Auto-Fill CardTrader, pulsanti dedicati CardTrader e Cardmarket Live, contatore quota JustTCG, modali API, Lightbox HD e 2FA. |
+| **`style.css`** | Design System Dark Luxury, box auto-fill, badge timestamp, indicatori trend, Lightbox, dropup automatici e monitor quota. |
+| **`app.js`** | Motore frontend: 1-Click Auto-Fill, reindirizzamento mirato Cardmarket con filtro lingua, smart merge per timestamp, calcolo medie, filtri, eventi, modali e chiamate API. |
+| **`cards-data.js`** | Database iniziale master con le **36 carte certificate** (Blueprint CT + Artwork YGOPRODeck + Timestamps). |
 | **`data_portfolio.json`** | Archivio dati JSON persistente letto e scritto dal server. |
-| **`.justtcg_token`** | File protetto con l'API Key JustTCG dell'utente (`tcg_f052...`). |
+| **`.justtcg_token`** | File protetto con l'API Key JustTCG dell'utente. |
 | **`.justtcg_usage.json`** | Monitoraggio persistente delle chiamate mensili JustTCG (limite 1.000, soglia alert 500, reset mensile automatico). |
 | **`Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv`** | File CSV master collegato su disco. |
 | **`CardVault_TCG.bat`** | File di avvio rapido per Windows. |
 
 ---
 
-## 10. ⚠️ ROADMAP & DA FARE: Revisione Logica Inserimento Nuove Carte
+## 11. ✨ Funzionalità Avanzate Completate: 1-Click Auto-Fill & Reindirizzamento Mirato
 
-> [!IMPORTANT]
-> **Punto Aperto per il Prossimo Step di Sviluppo:**  
-> L'attuale modale di inserimento carta (`#card-form`) richiede la compilazione manuale dei campi testo (espansione, rarità, codici, prezzi) e non associa automaticamente il `blueprintId` di CardTrader né l'immagine HD di YGOPRODeck.
+### 🔗 1. Inserimento Nuove Carte tramite Link CardTrader (1-Click Auto-Fill)
+- **Box Dedicato nei Modali Portfolio & Wants**:  
+  Nel form di aggiunta/modifica carta è presente il box **"⚡ Compila Automatica 1-Click con CardTrader & YGOPRODeck"**.
+- **Funzionamento**:
+  1. Incolla qualsiasi URL di CardTrader (es. `https://www.cardtrader.com/it/cards/80186-odin-father-of-the-aesir...`) o digita direttamente l'ID numerico del Blueprint (es. `80186`).
+  2. L'endpoint backend `POST /api/cardtrader/lookup-blueprint` estrae il Blueprint ID, interroga CardTrader API v2 per nome inglese, rarità ed espansione, e interroga in parallelo YGOPRODeck per estrarre artwork HD, statistiche mostro (ATK, DEF, Tipo, Livello, Attributo, Descrizione) e il codice carta corrispondente.
+  3. Il codice carta viene convertito automaticamente nella lingua target (es. `STOR-EN040` ➔ `STOR-IT040` per l'Italiano).
+  4. Vengono calcolate e compilate istantaneamente le quotazioni in tempo reale: **CardTrader Min & Trend**, **Cardmarket Min & Trend**, ed **eBay.it**.
+  5. Tutti i metadati (`blueprintId`, `cardTraderUrl`, `ygoprodeckUrl`, artwork HD) vengono salvati in modo permanente nel database JSON e nel CSV.
 
-### 🛠️ Nuova Logica di Inserimento da Implementare:
+---
 
-1. **Inserimento tramite Link CardTrader (1-Click Auto-Fill)**:
-   - Nel form di aggiunta carta, inserire un campo prioritario: **`🔗 Incolla Link CardTrader`** (es. `https://www.cardtrader.com/it/cards/328546-aluber-...`).
-   - L'utente incolla il link della carta ➔ Il server estrae immediatamente l'ID blueprint (`328546`), interroga l'API di CardTrader ed estrae in automatico:
-     - Nome Ufficiale Inglese ed Espansione
-     - Codice Carta e Rarità esatta
-     - Prezzo minimo reale e numero di inserzioni
-   - In parallelo interroga **YGOPRODeck** per:
-     - Scaricare l'artwork ufficiale in HD
-     - Scaricare il tipo di carta, archetipo e testo dell'effetto
-     - Assegnare il nome tradotto in italiano
-   - **Risultato**: La carta viene creata, calibrata e salvata nel CSV e nel database **in meno di 1 secondo senza dover digitare nulla a mano!**
-
-2. **Ricerca Live con Autocompletamento**:
-   - In alternativa al link, una barra di ricerca che suggerisce le carte disponibili mentre digiti (tramite YGOPRODeck / CardTrader search) e permette di selezionare l'espansione e la rarità da un menu visivo.
+### 🌐 2. Filtro per Lingua & Reindirizzamento Mirato per Cardmarket
+- **Parametri di Lingua Ufficiali Cardmarket (`idLanguage`)**:
+  - `Italiano (ITA)` ➔ `&idLanguage=5`
+  - `Inglese (EN)` ➔ `&idLanguage=1`
+  - `Tedesco (DE)` ➔ `&idLanguage=3`
+  - `Francese (FR)` ➔ `&idLanguage=2`
+  - `Spagnolo (ES)` ➔ `&idLanguage=4`
+  - `Giapponese (JP)` ➔ `&idLanguage=6`
+- **Ricerche Dirette & Reindirizzamenti**:
+  - Il link primario di **Cardmarket** punta direttamente alla combinazione esatta di **Codice Carta + Filtro Lingua** (es. `STOR-IT040&idLanguage=5`), portando subito alle inserzioni specifiche senza dispersioni.
+  - Il link di **CardTrader** punta direttamente alla pagina ufficiale del Blueprint (`/it/cards/:slug` o `/it/cards/:id`), mostrando con 1 clic tutte le copie fisiche in vendita in Europa.
+  - Il link di **eBay.it** imposta automaticamente la ricerca filtrata con `LH_BIN=1` (*Compralo Subito*) per codice e nome carta.
 
 ---
 

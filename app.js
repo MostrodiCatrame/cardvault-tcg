@@ -543,22 +543,34 @@
     const cleanSlug = engName.toLowerCase().replace(/\s*\(v\.\d+\)/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const directCtUrl = card.cardTraderUrl || (card.blueprintId ? `https://www.cardtrader.com/it/cards/${card.blueprintId}` : null);
 
+    // Language ID for Cardmarket filter: 1=English, 5=Italian, 3=German, 2=French, 4=Spanish, 6=Japanese
+    let cmLangId = 5;
+    const l = (card.language || "").toLowerCase();
+    if (l.includes("ita") || l.includes("italiano")) cmLangId = 5;
+    else if (l.includes("en") || l.includes("ing") || l.includes("english")) cmLangId = 1;
+    else if (l.includes("de") || l.includes("ted") || l.includes("deutsch")) cmLangId = 3;
+    else if (l.includes("fr") || l.includes("fra") || l.includes("français")) cmLangId = 2;
+    else if (l.includes("es") || l.includes("spa") || l.includes("spagnolo")) cmLangId = 4;
+    else if (l.includes("jp") || l.includes("gia") || l.includes("japanese")) cmLangId = 6;
+
+    const cmLangParam = `&idLanguage=${cmLangId}`;
+
     return {
       itaName,
       engName,
       code,
-      cmItaUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(itaName)}`,
-      cmCodeUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(code)}`,
-      cmEngUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(engName)}`,
-      cmBestUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(engName || itaName)}`,
+      cmItaUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(itaName)}${cmLangParam}`,
+      cmCodeUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(code)}${cmLangParam}`,
+      cmEngUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(engName)}${cmLangParam}`,
+      cmBestUrl: `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(code || engName || itaName)}${cmLangParam}`,
       
       ctItaUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(itaName)}`,
       ctCodeUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(code)}`,
       ctEngUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(engName)}`,
       ctBestUrl: directCtUrl || `https://www.cardtrader.com/it/cards/search?query=${encodeURIComponent(engName || itaName)}`,
       
-      ebUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + code + ' ' + engName)}&LH_BIN=1`,
-      ebItaUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + code + ' ' + itaName)}&LH_BIN=1`,
+      ebUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + (code ? code + ' ' : '') + engName)}&LH_BIN=1`,
+      ebItaUrl: `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + (code ? code + ' ' : '') + itaName)}&LH_BIN=1`,
       
       ygoUrl: card.ygoprodeckUrl || `https://ygoprodeck.com/card/${cleanSlug}`
     };
@@ -1070,19 +1082,16 @@
                 </svg>
               </button>
               <div class="market-dropdown-menu">
+                <a href="${cmCodeUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code}' su Cardmarket con filtro lingua ${getLanguageFlag(card.language)}">
+                  <span class="market-dot cm"></span> Cardmarket (${escapeHtml(code || engName)} ${getLanguageFlag(card.language)})
+                </a>
                 <a href="${cmEngUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${engName}' su Cardmarket">
                   <span class="market-dot cm"></span> Cardmarket (Nome EN)
                 </a>
-                <a href="${cmCodeUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code}' su Cardmarket">
-                  <span class="market-dot cm"></span> Cardmarket (Codice Set)
+                <a href="${ctBestUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="${card.blueprintId ? 'Apri direttamente Blueprint #' + card.blueprintId + ' su CardTrader' : 'Cerca su CardTrader'}">
+                  <span class="market-dot ct"></span> CardTrader ${card.blueprintId ? '⚡ (Blueprint #' + card.blueprintId + ')' : '(Ricerca)'}
                 </a>
-                <a href="${ctEngUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${engName}' su CardTrader">
-                  <span class="market-dot ct"></span> CardTrader (Nome EN)
-                </a>
-                <a href="${ctCodeUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code}' su CardTrader">
-                  <span class="market-dot ct"></span> CardTrader (Codice Set)
-                </a>
-                <a href="${ebUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code} ${engName}' su eBay.it">
+                <a href="${ebUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code} ${engName}' su eBay.it Compralo Subito">
                   <span class="market-dot eb"></span> eBay.it (Compralo Subito)
                 </a>
                 <a href="${ygoUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Vedi scheda ufficiale e tutti i set su YGOPRODeck">
@@ -1450,23 +1459,20 @@
                 </svg>
               </button>
               <div class="market-dropdown-menu">
-                <a href="${cmItaUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${itaName}' su Cardmarket Italia">
-                  <span class="market-dot cm"></span> Cardmarket (Nome ITA)
+                <a href="${cmCodeUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code}' su Cardmarket con filtro lingua ${getLanguageFlag(want.language)}">
+                  <span class="market-dot cm"></span> Cardmarket (${escapeHtml(code || engName)} ${getLanguageFlag(want.language)})
                 </a>
-                <a href="${cmCodeUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code}' su Cardmarket Italia">
-                  <span class="market-dot cm"></span> Cardmarket (Codice Set)
-                </a>
-                <a href="${cmEngUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${engName}' su Cardmarket Italia">
+                <a href="${cmEngUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${engName}' su Cardmarket">
                   <span class="market-dot cm"></span> Cardmarket (Nome EN)
                 </a>
-                <a href="${ctItaUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${itaName}' su CardTrader Italia">
-                  <span class="market-dot ct"></span> CardTrader (Nome ITA)
+                <a href="${ctBestUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="${want.blueprintId ? 'Apri direttamente Blueprint #' + want.blueprintId + ' su CardTrader' : 'Cerca su CardTrader'}">
+                  <span class="market-dot ct"></span> CardTrader ${want.blueprintId ? '⚡ (Blueprint #' + want.blueprintId + ')' : '(Ricerca)'}
                 </a>
-                <a href="${ctCodeUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code}' su CardTrader Italia">
-                  <span class="market-dot ct"></span> CardTrader (Codice Set)
+                <a href="${ebUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca su eBay.it Compralo Subito">
+                  <span class="market-dot eb"></span> eBay.it (Compralo Subito)
                 </a>
-                <a href="${ebUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca su eBay.it">
-                  <span class="market-dot eb"></span> eBay.it
+                <a href="${ygoUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Vedi scheda ufficiale e tutti i set su YGOPRODeck">
+                  <span class="market-dot" style="background:#10b981;"></span> YGOPRODeck Hub
                 </a>
               </div>
             </div>
@@ -1802,6 +1808,41 @@
     wantModal.addEventListener("click", (e) => {
       if (e.target === wantModal) closeWantModal();
     });
+
+    // Auto-fill button and Enter/Paste key in modal inputs
+    const btnAutofillFetch = document.getElementById("btn-autofill-fetch");
+    const inputAutofillUrl = document.getElementById("form-autofill-url");
+    if (btnAutofillFetch) {
+      btnAutofillFetch.addEventListener("click", () => triggerAutoFill(false));
+    }
+    if (inputAutofillUrl) {
+      inputAutofillUrl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          triggerAutoFill(false);
+        }
+      });
+      inputAutofillUrl.addEventListener("paste", () => {
+        setTimeout(() => triggerAutoFill(false), 100);
+      });
+    }
+
+    const wantBtnAutofillFetch = document.getElementById("want-btn-autofill-fetch");
+    const wantInputAutofillUrl = document.getElementById("want-form-autofill-url");
+    if (wantBtnAutofillFetch) {
+      wantBtnAutofillFetch.addEventListener("click", () => triggerAutoFill(true));
+    }
+    if (wantInputAutofillUrl) {
+      wantInputAutofillUrl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          triggerAutoFill(true);
+        }
+      });
+      wantInputAutofillUrl.addEventListener("paste", () => {
+        setTimeout(() => triggerAutoFill(true), 100);
+      });
+    }
 
     // Form submits
     cardForm.addEventListener("submit", handleCardFormSubmit);
@@ -2451,6 +2492,152 @@
   }
 
   // ==========================================
+  // 1-CLICK AUTO-FILL WITH CARDTRADER & YGOPRODECK
+  // ==========================================
+  async function triggerAutoFill(isWant = false) {
+    const inputEl = document.getElementById(isWant ? "want-form-autofill-url" : "form-autofill-url");
+    const btnEl = document.getElementById(isWant ? "want-btn-autofill-fetch" : "btn-autofill-fetch");
+    const btnTextEl = document.getElementById(isWant ? "want-autofill-btn-text" : "autofill-btn-text");
+    const statusMsgEl = document.getElementById(isWant ? "want-autofill-status-msg" : "autofill-status-msg");
+    const langSelect = document.getElementById(isWant ? "want-form-lang" : "form-lang");
+    const condSelect = document.getElementById(isWant ? "want-form-condition" : "form-condition");
+
+    const rawInput = inputEl ? inputEl.value.trim() : "";
+    if (!rawInput) {
+      if (statusMsgEl) {
+        statusMsgEl.className = "autofill-status-msg error";
+        statusMsgEl.textContent = "⚠️ Incolla un link CardTrader o un ID Blueprint numerico prima di procedere.";
+        statusMsgEl.style.display = "flex";
+      }
+      return;
+    }
+
+    const currentLang = langSelect ? langSelect.value : "Italiano (ITA)";
+    const currentCond = condSelect ? condSelect.value : "Near Mint";
+
+    // Set loading state
+    if (btnEl) btnEl.disabled = true;
+    if (btnTextEl) btnTextEl.textContent = "⏳ Analisi Blueprint & YGOPRODeck...";
+    if (statusMsgEl) {
+      statusMsgEl.className = "autofill-status-msg loading";
+      statusMsgEl.innerHTML = "🔍 Interrogazione CardTrader API & download artwork YGOPRODeck in corso...";
+      statusMsgEl.style.display = "flex";
+    }
+
+    try {
+      const res = await fetch("/api/cardtrader/lookup-blueprint", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          url: rawInput,
+          language: currentLang,
+          condition: currentCond,
+          edition: "1st Edition"
+        })
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Impossibile recuperare i dati dal Blueprint");
+      }
+
+      // Populate Form Fields
+      if (isWant) {
+        document.getElementById("want-form-name").value = data.name || data.englishName;
+        document.getElementById("want-form-english-name").value = data.englishName || "";
+        document.getElementById("want-form-set").value = data.expansion || "";
+        document.getElementById("want-form-code").value = data.code || "";
+        document.getElementById("want-form-rarity").value = data.rarity || "";
+        document.getElementById("want-form-edition").value = data.edition || "1ª Edizione";
+        document.getElementById("want-form-lang").value = data.language || "Italiano (ITA)";
+        document.getElementById("want-form-condition").value = data.condition || "Near Mint";
+
+        // Prezzi
+        document.getElementById("want-form-cm-min").value = data.cmMin ? data.cmMin.toFixed(2) : "";
+        document.getElementById("want-form-cm-trend").value = data.cmTrend ? data.cmTrend.toFixed(2) : "";
+        document.getElementById("want-form-ct-min").value = data.ctMin ? data.ctMin.toFixed(2) : "";
+        document.getElementById("want-form-ct-trend").value = data.ctTrend ? data.ctTrend.toFixed(2) : "";
+        document.getElementById("want-form-eb-min").value = data.ebMin ? data.ebMin.toFixed(2) : "";
+        document.getElementById("want-form-eb-trend").value = data.ebTrend ? data.ebTrend.toFixed(2) : "";
+
+        // Target Budget suggestion if empty
+        const targetInput = document.getElementById("want-form-target-price");
+        if (targetInput && (!targetInput.value || parseFloat(targetInput.value) === 0)) {
+          const suggested = data.ctMin || data.cmMin || data.ebMin || 0;
+          if (suggested > 0) targetInput.value = suggested.toFixed(2);
+        }
+
+        // Hidden Metadata
+        document.getElementById("form-want-blueprint-id").value = data.blueprintId || "";
+        document.getElementById("form-want-trader-url").value = data.cardTraderUrl || "";
+        document.getElementById("form-want-ygoprodeck-url").value = data.ygoprodeckUrl || "";
+        document.getElementById("form-want-image-url").value = data.imageUrl || "";
+        document.getElementById("form-want-image-url-large").value = data.imageUrlLarge || "";
+        document.getElementById("form-want-image-url-cropped").value = data.imageUrlCropped || "";
+        document.getElementById("form-want-card-type").value = data.cardType || "";
+        document.getElementById("form-want-desc").value = data.desc || "";
+        document.getElementById("form-want-archetype").value = data.archetype || "";
+        document.getElementById("form-want-atk").value = data.atk !== null && data.atk !== undefined ? data.atk : "";
+        document.getElementById("form-want-def").value = data.def !== null && data.def !== undefined ? data.def : "";
+        document.getElementById("form-want-level").value = data.level !== null && data.level !== undefined ? data.level : "";
+        document.getElementById("form-want-attribute").value = data.attribute || "";
+      } else {
+        document.getElementById("form-name").value = data.name || data.englishName;
+        document.getElementById("form-english-name").value = data.englishName || "";
+        document.getElementById("form-set").value = data.expansion || "";
+        document.getElementById("form-code").value = data.code || "";
+        document.getElementById("form-rarity").value = data.rarity || "";
+        document.getElementById("form-edition").value = data.edition || "1ª Edizione";
+        document.getElementById("form-lang").value = data.language || "Italiano (ITA)";
+        document.getElementById("form-condition").value = data.condition || "Near Mint";
+        document.getElementById("form-notes").value = data.notes || `Blueprint CT: #${data.blueprintId}`;
+
+        // Prezzi
+        document.getElementById("form-cm-min").value = data.cmMin ? data.cmMin.toFixed(2) : "";
+        document.getElementById("form-cm-trend").value = data.cmTrend ? data.cmTrend.toFixed(2) : "";
+        document.getElementById("form-ct-min").value = data.ctMin ? data.ctMin.toFixed(2) : "";
+        document.getElementById("form-ct-trend").value = data.ctTrend ? data.ctTrend.toFixed(2) : "";
+        document.getElementById("form-eb-min").value = data.ebMin ? data.ebMin.toFixed(2) : "";
+        document.getElementById("form-eb-trend").value = data.ebTrend ? data.ebTrend.toFixed(2) : "";
+        document.getElementById("form-trend-status").value = data.trendStatus || "stable";
+        document.getElementById("form-trend-pct").value = data.trendPct !== undefined ? data.trendPct : 0;
+
+        // Hidden Metadata
+        document.getElementById("form-card-blueprint-id").value = data.blueprintId || "";
+        document.getElementById("form-card-trader-url").value = data.cardTraderUrl || "";
+        document.getElementById("form-card-ygoprodeck-url").value = data.ygoprodeckUrl || "";
+        document.getElementById("form-card-image-url").value = data.imageUrl || "";
+        document.getElementById("form-card-image-url-large").value = data.imageUrlLarge || "";
+        document.getElementById("form-card-image-url-cropped").value = data.imageUrlCropped || "";
+        document.getElementById("form-card-type").value = data.cardType || "";
+        document.getElementById("form-card-desc").value = data.desc || "";
+        document.getElementById("form-card-archetype").value = data.archetype || "";
+        document.getElementById("form-card-atk").value = data.atk !== null && data.atk !== undefined ? data.atk : "";
+        document.getElementById("form-card-def").value = data.def !== null && data.def !== undefined ? data.def : "";
+        document.getElementById("form-card-level").value = data.level !== null && data.level !== undefined ? data.level : "";
+        document.getElementById("form-card-attribute").value = data.attribute || "";
+      }
+
+      if (statusMsgEl) {
+        statusMsgEl.className = "autofill-status-msg success";
+        statusMsgEl.innerHTML = `✅ <strong>"${escapeHtml(data.englishName)}"</strong> caricata! Set: ${escapeHtml(data.expansion)} (${escapeHtml(data.code)}) • ${escapeHtml(data.rarity)} • CT Min: €${data.ctMin ? data.ctMin.toFixed(2) : '0.00'}`;
+        statusMsgEl.style.display = "flex";
+      }
+
+      showToast(`✨ Dati e quotazioni caricati con successo da CardTrader & YGOPRODeck!`);
+    } catch(err) {
+      if (statusMsgEl) {
+        statusMsgEl.className = "autofill-status-msg error";
+        statusMsgEl.textContent = `❌ Errore auto-fill: ${err.message}`;
+        statusMsgEl.style.display = "flex";
+      }
+    } finally {
+      if (btnEl) btnEl.disabled = false;
+      if (btnTextEl) btnTextEl.textContent = "⚡ Compila Dati";
+    }
+  }
+
+  // ==========================================
   // MODAL HANDLERS - PORTFOLIO
   // ==========================================
   function openCardModal(cardId) {
@@ -2458,6 +2645,8 @@
     cardForm.reset();
 
     const tsEl = document.getElementById("card-modal-timestamp");
+    const autofillStatusMsg = document.getElementById("autofill-status-msg");
+    if (autofillStatusMsg) autofillStatusMsg.style.display = "none";
 
     if (cardId) {
       cardModalTitle.textContent = "Modifica Carta nel Portfolio";
@@ -2469,7 +2658,22 @@
         tsEl.innerHTML = `🕒 <strong>Ultima modifica:</strong> ${formatFullDate(card.updatedAt)}`;
       }
 
+      document.getElementById("form-autofill-url").value = card.cardTraderUrl || (card.blueprintId ? String(card.blueprintId) : "");
       document.getElementById("form-card-id").value = card.id;
+      document.getElementById("form-card-blueprint-id").value = card.blueprintId || "";
+      document.getElementById("form-card-trader-url").value = card.cardTraderUrl || "";
+      document.getElementById("form-card-ygoprodeck-url").value = card.ygoprodeckUrl || "";
+      document.getElementById("form-card-image-url").value = card.imageUrl || "";
+      document.getElementById("form-card-image-url-large").value = card.imageUrlLarge || "";
+      document.getElementById("form-card-image-url-cropped").value = card.imageUrlCropped || "";
+      document.getElementById("form-card-type").value = card.cardType || "";
+      document.getElementById("form-card-desc").value = card.desc || "";
+      document.getElementById("form-card-archetype").value = card.archetype || "";
+      document.getElementById("form-card-atk").value = card.atk !== null && card.atk !== undefined ? card.atk : "";
+      document.getElementById("form-card-def").value = card.def !== null && card.def !== undefined ? card.def : "";
+      document.getElementById("form-card-level").value = card.level !== null && card.level !== undefined ? card.level : "";
+      document.getElementById("form-card-attribute").value = card.attribute || "";
+
       document.getElementById("form-name").value = card.name || "";
       document.getElementById("form-english-name").value = card.englishName || "";
       document.getElementById("form-set").value = card.expansion || "";
@@ -2494,7 +2698,22 @@
         tsEl.style.display = "none";
       }
       cardModalTitle.textContent = "Aggiungi Nuova Carta nel Portfolio";
+      document.getElementById("form-autofill-url").value = "";
       document.getElementById("form-card-id").value = "";
+      document.getElementById("form-card-blueprint-id").value = "";
+      document.getElementById("form-card-trader-url").value = "";
+      document.getElementById("form-card-ygoprodeck-url").value = "";
+      document.getElementById("form-card-image-url").value = "";
+      document.getElementById("form-card-image-url-large").value = "";
+      document.getElementById("form-card-image-url-cropped").value = "";
+      document.getElementById("form-card-type").value = "";
+      document.getElementById("form-card-desc").value = "";
+      document.getElementById("form-card-archetype").value = "";
+      document.getElementById("form-card-atk").value = "";
+      document.getElementById("form-card-def").value = "";
+      document.getElementById("form-card-level").value = "";
+      document.getElementById("form-card-attribute").value = "";
+
       document.getElementById("form-english-name").value = "";
       document.getElementById("form-lang").value = "Italiano (ITA)";
       document.getElementById("form-condition").value = "Near Mint";
@@ -2524,6 +2743,25 @@
     const condition = document.getElementById("form-condition").value;
     const notes = document.getElementById("form-notes").value.trim();
 
+    const blueprintIdVal = document.getElementById("form-card-blueprint-id").value;
+    const blueprintId = blueprintIdVal ? parseInt(blueprintIdVal, 10) : (editingCardId ? cards.find(c => c.id === editingCardId)?.blueprintId : null);
+    const cardTraderUrl = document.getElementById("form-card-trader-url").value || (editingCardId ? cards.find(c => c.id === editingCardId)?.cardTraderUrl : null);
+    const ygoprodeckUrl = document.getElementById("form-card-ygoprodeck-url").value || (editingCardId ? cards.find(c => c.id === editingCardId)?.ygoprodeckUrl : null);
+    const imageUrl = document.getElementById("form-card-image-url").value || (editingCardId ? cards.find(c => c.id === editingCardId)?.imageUrl : null);
+    const imageUrlLarge = document.getElementById("form-card-image-url-large").value || (editingCardId ? cards.find(c => c.id === editingCardId)?.imageUrlLarge : null);
+    const imageUrlCropped = document.getElementById("form-card-image-url-cropped").value || (editingCardId ? cards.find(c => c.id === editingCardId)?.imageUrlCropped : null);
+    const cardType = document.getElementById("form-card-type").value || (editingCardId ? cards.find(c => c.id === editingCardId)?.cardType : "");
+    const desc = document.getElementById("form-card-desc").value || (editingCardId ? cards.find(c => c.id === editingCardId)?.desc : "");
+    const archetype = document.getElementById("form-card-archetype").value || (editingCardId ? cards.find(c => c.id === editingCardId)?.archetype : "");
+    const atkVal = document.getElementById("form-card-atk").value;
+    const defVal = document.getElementById("form-card-def").value;
+    const levelVal = document.getElementById("form-card-level").value;
+    const attribute = document.getElementById("form-card-attribute").value || (editingCardId ? cards.find(c => c.id === editingCardId)?.attribute : "");
+
+    const atk = atkVal !== "" ? parseInt(atkVal, 10) : (editingCardId ? cards.find(c => c.id === editingCardId)?.atk : null);
+    const def = defVal !== "" ? parseInt(defVal, 10) : (editingCardId ? cards.find(c => c.id === editingCardId)?.def : null);
+    const level = levelVal !== "" ? parseInt(levelVal, 10) : (editingCardId ? cards.find(c => c.id === editingCardId)?.level : null);
+
     const cmMin = parseFloat(document.getElementById("form-cm-min").value) || 0;
     const cmTrend = parseFloat(document.getElementById("form-cm-trend").value) || 0;
     const ctMin = parseFloat(document.getElementById("form-ct-min").value) || 0;
@@ -2541,6 +2779,8 @@
         cards[index] = {
           ...cards[index],
           name, englishName, expansion, code, rarity, edition, language, condition, notes,
+          blueprintId, cardTraderUrl, ygoprodeckUrl, imageUrl, imageUrlLarge, imageUrlCropped,
+          cardType, desc, archetype, atk, def, level, attribute,
           cmMin, cmTrend, ctMin, ctTrend, ebMin, ebTrend,
           baseCmMin: cmMin, baseCmTrend: cmTrend,
           baseCtMin: ctMin, baseCtTrend: ctTrend,
@@ -2557,6 +2797,8 @@
         id: maxId + 1,
         num: maxNum + 1,
         name, englishName, expansion, code, rarity, edition, language, condition, notes,
+        blueprintId, cardTraderUrl, ygoprodeckUrl, imageUrl, imageUrlLarge, imageUrlCropped,
+        cardType, desc, archetype, atk, def, level, attribute,
         cmMin, cmTrend, ctMin, ctTrend, ebMin, ebTrend,
         baseCmMin: cmMin, baseCmTrend: cmTrend,
         baseCtMin: ctMin, baseCtTrend: ctTrend,
@@ -2597,6 +2839,8 @@
     wantForm.reset();
 
     const tsEl = document.getElementById("want-modal-timestamp");
+    const autofillStatusMsg = document.getElementById("want-autofill-status-msg");
+    if (autofillStatusMsg) autofillStatusMsg.style.display = "none";
 
     if (wantId) {
       wantModalTitle.textContent = "Modifica Want nella Wishlist";
@@ -2608,7 +2852,22 @@
         tsEl.innerHTML = `🕒 <strong>Ultima modifica:</strong> ${formatFullDate(want.updatedAt)}`;
       }
 
+      document.getElementById("want-form-autofill-url").value = want.cardTraderUrl || (want.blueprintId ? String(want.blueprintId) : "");
       document.getElementById("form-want-id").value = want.id;
+      document.getElementById("form-want-blueprint-id").value = want.blueprintId || "";
+      document.getElementById("form-want-trader-url").value = want.cardTraderUrl || "";
+      document.getElementById("form-want-ygoprodeck-url").value = want.ygoprodeckUrl || "";
+      document.getElementById("form-want-image-url").value = want.imageUrl || "";
+      document.getElementById("form-want-image-url-large").value = want.imageUrlLarge || "";
+      document.getElementById("form-want-image-url-cropped").value = want.imageUrlCropped || "";
+      document.getElementById("form-want-card-type").value = want.cardType || "";
+      document.getElementById("form-want-desc").value = want.desc || "";
+      document.getElementById("form-want-archetype").value = want.archetype || "";
+      document.getElementById("form-want-atk").value = want.atk !== null && want.atk !== undefined ? want.atk : "";
+      document.getElementById("form-want-def").value = want.def !== null && want.def !== undefined ? want.def : "";
+      document.getElementById("form-want-level").value = want.level !== null && want.level !== undefined ? want.level : "";
+      document.getElementById("form-want-attribute").value = want.attribute || "";
+
       document.getElementById("want-form-name").value = want.name || "";
       document.getElementById("want-form-english-name").value = want.englishName || "";
       document.getElementById("want-form-set").value = want.expansion || "";
@@ -2631,7 +2890,22 @@
         tsEl.style.display = "none";
       }
       wantModalTitle.textContent = "Aggiungi Carta alla Lista Wants";
+      document.getElementById("want-form-autofill-url").value = "";
       document.getElementById("form-want-id").value = "";
+      document.getElementById("form-want-blueprint-id").value = "";
+      document.getElementById("form-want-trader-url").value = "";
+      document.getElementById("form-want-ygoprodeck-url").value = "";
+      document.getElementById("form-want-image-url").value = "";
+      document.getElementById("form-want-image-url-large").value = "";
+      document.getElementById("form-want-image-url-cropped").value = "";
+      document.getElementById("form-want-card-type").value = "";
+      document.getElementById("form-want-desc").value = "";
+      document.getElementById("form-want-archetype").value = "";
+      document.getElementById("form-want-atk").value = "";
+      document.getElementById("form-want-def").value = "";
+      document.getElementById("form-want-level").value = "";
+      document.getElementById("form-want-attribute").value = "";
+
       document.getElementById("want-form-english-name").value = "";
       document.getElementById("want-form-lang").value = "Italiano (ITA)";
       document.getElementById("want-form-condition").value = "Near Mint";
@@ -2661,6 +2935,25 @@
     const targetPrice = parseFloat(document.getElementById("want-form-target-price").value) || 0;
     const notes = document.getElementById("want-form-notes").value.trim();
 
+    const blueprintIdVal = document.getElementById("form-want-blueprint-id").value;
+    const blueprintId = blueprintIdVal ? parseInt(blueprintIdVal, 10) : (editingWantId ? wants.find(w => w.id === editingWantId)?.blueprintId : null);
+    const cardTraderUrl = document.getElementById("form-want-trader-url").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.cardTraderUrl : null);
+    const ygoprodeckUrl = document.getElementById("form-want-ygoprodeck-url").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.ygoprodeckUrl : null);
+    const imageUrl = document.getElementById("form-want-image-url").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.imageUrl : null);
+    const imageUrlLarge = document.getElementById("form-want-image-url-large").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.imageUrlLarge : null);
+    const imageUrlCropped = document.getElementById("form-want-image-url-cropped").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.imageUrlCropped : null);
+    const cardType = document.getElementById("form-want-card-type").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.cardType : "");
+    const desc = document.getElementById("form-want-desc").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.desc : "");
+    const archetype = document.getElementById("form-want-archetype").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.archetype : "");
+    const atkVal = document.getElementById("form-want-atk").value;
+    const defVal = document.getElementById("form-want-def").value;
+    const levelVal = document.getElementById("form-want-level").value;
+    const attribute = document.getElementById("form-want-attribute").value || (editingWantId ? wants.find(w => w.id === editingWantId)?.attribute : "");
+
+    const atk = atkVal !== "" ? parseInt(atkVal, 10) : (editingWantId ? wants.find(w => w.id === editingWantId)?.atk : null);
+    const def = defVal !== "" ? parseInt(defVal, 10) : (editingWantId ? wants.find(w => w.id === editingWantId)?.def : null);
+    const level = levelVal !== "" ? parseInt(levelVal, 10) : (editingWantId ? wants.find(w => w.id === editingWantId)?.level : null);
+
     const cmMin = parseFloat(document.getElementById("want-form-cm-min").value) || 0;
     const cmTrend = parseFloat(document.getElementById("want-form-cm-trend").value) || 0;
     const ctMin = parseFloat(document.getElementById("want-form-ct-min").value) || 0;
@@ -2675,6 +2968,8 @@
         wants[index] = {
           ...wants[index],
           name, englishName, expansion, code, rarity, edition, language, targetCondition, targetPrice, notes,
+          blueprintId, cardTraderUrl, ygoprodeckUrl, imageUrl, imageUrlLarge, imageUrlCropped,
+          cardType, desc, archetype, atk, def, level, attribute,
           cmMin, cmTrend, ctMin, ctTrend, ebMin, ebTrend,
           baseCmMin: cmMin, baseCtMin: ctMin, baseEbMin: ebMin,
           updatedAt: nowIso
@@ -2686,6 +2981,8 @@
       const newWant = {
         id: maxId + 1,
         name, englishName, expansion, code, rarity, edition, language, targetCondition, targetPrice, notes,
+        blueprintId, cardTraderUrl, ygoprodeckUrl, imageUrl, imageUrlLarge, imageUrlCropped,
+        cardType, desc, archetype, atk, def, level, attribute,
         cmMin, cmTrend, ctMin, ctTrend, ebMin, ebTrend,
         baseCmMin: cmMin, baseCtMin: ctMin, baseEbMin: ebMin,
         trendStatus: "stable",

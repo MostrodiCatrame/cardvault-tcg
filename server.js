@@ -918,6 +918,7 @@ function fetchYgoProDeck(card) {
             const prices = ygo.card_prices && ygo.card_prices[0] ? ygo.card_prices[0] : {};
             resolve({
               success: true,
+              name: ygo.name,
               imageUrl: img.image_url_small || img.image_url || null,
               imageUrlLarge: img.image_url || null,
               imageUrlCropped: img.image_url_cropped || null,
@@ -930,6 +931,7 @@ function fetchYgoProDeck(card) {
               level: ygo.level || ygo.linkval,
               archetype: ygo.archetype || '',
               desc: ygo.desc || '',
+              cardSets: ygo.card_sets || [],
               prices: {
                 cardmarketFloor: parseFloat(prices.cardmarket_price) || 0,
                 tcgplayer: parseFloat(prices.tcgplayer_price) || 0,
@@ -951,11 +953,13 @@ function fetchYgoProDeck(card) {
                     const img = ygo.card_images && ygo.card_images[0] ? ygo.card_images[0] : {};
                     resolve({
                       success: true,
+                      name: ygo.name,
                       imageUrl: img.image_url_small || img.image_url || null,
                       imageUrlLarge: img.image_url || null,
                       imageUrlCropped: img.image_url_cropped || null,
                       cardType: ygo.type || '',
                       desc: ygo.desc || '',
+                      cardSets: ygo.card_sets || [],
                       prices: {}
                     });
                   } else {
@@ -979,6 +983,196 @@ function fetchYgoProDeck(card) {
       resolve({ success: false, reason: 'Timeout richiesta YGOPRODeck' });
     });
   });
+}
+
+function extractBlueprintIdFromInput(input) {
+  if (!input) return null;
+  const str = String(input).trim();
+  if (/^\d+$/.test(str)) return parseInt(str, 10);
+  const match = str.match(/(?:\/cards\/|\/blueprints\/|^)(\d+)/i);
+  if (match) return parseInt(match[1], 10);
+  return null;
+}
+
+function formatCardCodeForLanguage(baseCode, language) {
+  if (!baseCode) return '';
+  const code = baseCode.toUpperCase().trim();
+  const lang = (language || '').toLowerCase();
+  
+  let targetLangTag = 'IT';
+  if (lang.includes('ita') || lang.includes('italiano')) targetLangTag = 'IT';
+  else if (lang.includes('en') || lang.includes('ing') || lang.includes('english')) targetLangTag = 'EN';
+  else if (lang.includes('de') || lang.includes('ted') || lang.includes('deutsch')) targetLangTag = 'DE';
+  else if (lang.includes('fr') || lang.includes('fra') || lang.includes('français')) targetLangTag = 'FR';
+  else if (lang.includes('es') || lang.includes('spa') || lang.includes('spagnolo')) targetLangTag = 'ES';
+  else if (lang.includes('jp') || lang.includes('gia') || lang.includes('japanese')) targetLangTag = 'JP';
+
+  if (/^[A-Z0-9]+-[A-Z]{2}\d+$/.test(code)) {
+    return code.replace(/-[A-Z]{2}(\d+)$/, `-${targetLangTag}$1`);
+  } else if (/^[A-Z0-9]+-[A-Z]\d+$/.test(code)) {
+    return code.replace(/-[A-Z](\d+)$/, `-${targetLangTag}$1`);
+  } else if (/^[A-Z0-9]+-\d+$/.test(code)) {
+    if (targetLangTag !== 'EN') {
+      return code.replace(/-(\d+)$/, `-${targetLangTag}$1`);
+    }
+  }
+  return code;
+}
+
+async function lookupCardTraderBlueprint(blueprintIdOrUrl, targetLanguage = 'Italiano (ITA)', condition = 'Near Mint', edition = '1st Edition') {
+  const bpId = extractBlueprintIdFromInput(blueprintIdOrUrl);
+  if (!bpId) {
+    throw new Error('ID Blueprint o URL CardTrader non valido. Incolla un link come https://www.cardtrader.com/it/cards/80186... o un ID numerico.');
+  }
+
+  // 1. Fetch Blueprint from CardTrader API
+  const bp = await fetchCardTrader(`/api/v2/blueprints/${bpId}`);
+  if (!bp || !bp.id) {
+    throw new Error(`Blueprint #${bpId} non trovato su CardTrader`);
+  }
+
+  // 2. Fetch Expansion Info
+  const expansions = await getYuGiOhExpansions();
+  const exp = expansions.find(e => e.id === bp.expansion_id) || { name: 'Espansione Yu-Gi-Oh!', code: 'TCG' };
+
+  // 3. Fetch YGOPRODeck HD Image & Meta & Sets
+  const ygoRes = await fetchYgoProDeck({ englishName: bp.name });
+  
+  // 4. Find matching set code in YGOPRODeck card_sets
+  let matchedSetCode = '';
+  if (ygoRes.success && Array.isArray(ygoRes.cardSets) && ygoRes.cardSets.length > 0) {
+    const bpRarityNorm = normalizeRarity(bp.version);
+    const expClean = cleanStr(exp.name);
+    const expCodeClean = cleanStr(exp.code);
+
+    // Exact set_name + set_rarity
+    let match = ygoRes.cardSets.find(s => {
+      const sNameClean = cleanStr(s.set_name);
+      const sRarityNorm = normalizeRarity(s.set_rarity);
+      const nameMatches = sNameClean === expClean || sNameClean.includes(expClean) || expClean.includes(sNameClean);
+      const rarityMatches = sRarityNorm === bpRarityNorm || s.set_rarity.toLowerCase().includes(bp.version.toLowerCase()) || bp.version.toLowerCase().includes(s.set_rarity.toLowerCase());
+      return nameMatches && rarityMatches;
+    });
+
+    // Fallback: match by set code prefix (e.g. STOR-EN matches stor) + rarity
+    if (!match && expCodeClean) {
+      match = ygoRes.cardSets.find(s => {
+        const sCodeClean = cleanStr((s.set_code || '').split('-')[0]);
+        const sRarityNorm = normalizeRarity(s.set_rarity);
+        return sCodeClean === expCodeClean && (sRarityNorm === bpRarityNorm || s.set_rarity.toLowerCase().includes(bp.version.toLowerCase()));
+      });
+    }
+
+    // Fallback: match by expansion name only
+    if (!match) {
+      match = ygoRes.cardSets.find(s => {
+        const sNameClean = cleanStr(s.set_name);
+        return sNameClean === expClean || sNameClean.includes(expClean) || expClean.includes(sNameClean);
+      });
+    }
+
+    if (match && match.set_code) {
+      matchedSetCode = match.set_code;
+    }
+  }
+
+  if (!matchedSetCode && exp.code) {
+    matchedSetCode = `${exp.code.toUpperCase()}-EN001`;
+  }
+
+  // Format code according to requested language (e.g. STOR-EN040 -> STOR-IT040)
+  const finalCode = formatCardCodeForLanguage(matchedSetCode, targetLanguage);
+
+  // 5. Look up known Italian name
+  let italianName = bp.name;
+  try {
+    const portfolio = getStoredPortfolio();
+    const existing = (portfolio.cards || []).find(c => (c.blueprintId === bp.id) || (cleanStr(c.englishName) === cleanStr(bp.name)));
+    if (existing && existing.name) {
+      italianName = existing.name;
+    }
+  } catch(e) {}
+
+  // 6. Fetch live CardTrader Prices (with language and condition filtering)
+  const tempCard = {
+    blueprintId: bp.id,
+    englishName: bp.name,
+    name: italianName,
+    code: finalCode,
+    expansion: exp.name,
+    rarity: bp.version || 'Rare',
+    edition: edition || '1st Edition',
+    language: targetLanguage,
+    condition: condition || 'Near Mint'
+  };
+
+  let ctMin = 0, ctTrend = 0, ctListings = 0, ctFilterLevel = '';
+  try {
+    const ctPriceRes = await fetchCardTraderPrice(tempCard);
+    if (ctPriceRes && ctPriceRes.success) {
+      ctMin = ctPriceRes.minPrice || 0;
+      ctTrend = ctPriceRes.trendPrice || 0;
+      ctListings = ctPriceRes.listingsCount || 0;
+      ctFilterLevel = ctPriceRes.filterLevel || '';
+    }
+  } catch(e) {}
+
+  // 7. Fetch live JustTCG / YGOPRODeck prices
+  let cmMin = (ygoRes.prices && ygoRes.prices.cardmarketFloor) || 0;
+  let cmTrend = cmMin > 0 ? parseFloat((cmMin * 1.15).toFixed(2)) : 0;
+  let ebMin = ctMin > 0 ? parseFloat((ctMin * 0.98).toFixed(2)) : (cmMin > 0 ? parseFloat((cmMin * 0.98).toFixed(2)) : 0);
+  let ebTrend = ctTrend > 0 ? parseFloat((ctTrend * 1.02).toFixed(2)) : (cmTrend > 0 ? parseFloat((cmTrend * 1.02).toFixed(2)) : 0);
+
+  const justKey = getJustTcgApiKey();
+  if (justKey) {
+    try {
+      const justRes = await fetchJustTcgPrice(tempCard, justKey);
+      if (justRes && justRes.success) {
+        if (justRes.cmMin > 0) cmMin = justRes.cmMin;
+        if (justRes.cmTrend > 0) cmTrend = justRes.cmTrend;
+      }
+    } catch(e) {}
+  }
+
+  const ctSlug = bp.slug || `${bp.id}-${cleanCardNameForYgo(bp.name).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const cardTraderUrl = `https://www.cardtrader.com/it/cards/${ctSlug}`;
+
+  return {
+    success: true,
+    blueprintId: bp.id,
+    name: italianName,
+    englishName: bp.name,
+    expansion: exp.name,
+    code: finalCode,
+    rarity: bp.version || 'Rare',
+    edition: edition || '1st Edition',
+    language: targetLanguage,
+    condition: condition || 'Near Mint',
+    imageUrl: ygoRes.imageUrl || (bp.image && bp.image.url ? `https://www.cardtrader.com${bp.image.url}` : null),
+    imageUrlLarge: ygoRes.imageUrlLarge || (bp.image && bp.image.url ? `https://www.cardtrader.com${bp.image.url}` : null),
+    imageUrlCropped: ygoRes.imageUrlCropped || null,
+    cardType: ygoRes.cardType || '',
+    race: ygoRes.race || '',
+    attribute: ygoRes.attribute || '',
+    atk: ygoRes.atk !== undefined ? ygoRes.atk : null,
+    def: ygoRes.def !== undefined ? ygoRes.def : null,
+    level: ygoRes.level !== undefined ? ygoRes.level : null,
+    archetype: ygoRes.archetype || '',
+    desc: ygoRes.desc || '',
+    ygoprodeckUrl: ygoRes.ygoprodeckUrl || null,
+    cardTraderUrl: cardTraderUrl,
+    ctMin: ctMin,
+    ctTrend: ctTrend,
+    cmMin: cmMin,
+    cmTrend: cmTrend,
+    ebMin: ebMin,
+    ebTrend: ebTrend,
+    ctListings: ctListings,
+    ctFilterLevel: ctFilterLevel,
+    trendStatus: (ctTrend > ctMin * 1.15 || cmTrend > cmMin * 1.15) ? 'up' : 'stable',
+    trendPct: (ctTrend > ctMin && ctMin > 0) ? parseFloat(((ctTrend - ctMin) / ctMin * 10).toFixed(1)) : 0,
+    notes: `Blueprint CT: #${bp.id}`
+  };
 }
 
 // JustTCG API Request Helper with Monthly Quota Tracking (1000 Calls/Month)
@@ -1426,6 +1620,33 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, user: info.name }));
       } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // API: 1-Click Auto-Fill Card Lookup from CardTrader Blueprint / URL
+  if ((req.url === '/api/cardtrader/lookup-blueprint' || req.url === '/api/card/autofill') && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const input = payload.url || payload.blueprintId || payload.input;
+        if (!input) {
+          throw new Error("Inserisci un link CardTrader o un ID Blueprint valido");
+        }
+        const language = payload.language || 'Italiano (ITA)';
+        const condition = payload.condition || 'Near Mint';
+        const edition = payload.edition || '1st Edition';
+
+        const result = await lookupCardTraderBlueprint(input, language, condition, edition);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch(err) {
+        console.error('[Lookup Blueprint Error]', err.message);
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }

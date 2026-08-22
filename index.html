@@ -529,6 +529,37 @@
 
       <form id="card-form" class="modal-form">
         <input type="hidden" id="form-card-id">
+        <input type="hidden" id="form-card-blueprint-id">
+        <input type="hidden" id="form-card-trader-url">
+        <input type="hidden" id="form-card-ygoprodeck-url">
+        <input type="hidden" id="form-card-image-url">
+        <input type="hidden" id="form-card-image-url-large">
+        <input type="hidden" id="form-card-image-url-cropped">
+        <input type="hidden" id="form-card-type">
+        <input type="hidden" id="form-card-desc">
+        <input type="hidden" id="form-card-archetype">
+        <input type="hidden" id="form-card-atk">
+        <input type="hidden" id="form-card-def">
+        <input type="hidden" id="form-card-level">
+        <input type="hidden" id="form-card-attribute">
+
+        <!-- CardTrader 1-Click Auto-Fill Box -->
+        <div class="autofill-box" id="card-autofill-box">
+          <div class="autofill-header">
+            <span class="autofill-icon">⚡</span>
+            <div>
+              <strong>Compilazione Automatica 1-Click con CardTrader & YGOPRODeck</strong>
+              <p class="autofill-sub">Incolla il link CardTrader o l'ID Blueprint per compilare automaticamente metadati, artwork HD e prezzi live di tutti i mercati!</p>
+            </div>
+          </div>
+          <div class="autofill-input-row">
+            <input type="text" id="form-autofill-url" class="autofill-input" placeholder="Incolla link CardTrader (es. https://www.cardtrader.com/it/cards/80186...) o ID Blueprint">
+            <button type="button" class="btn btn-ct-sync" id="btn-autofill-fetch" style="white-space: nowrap;">
+              <span id="autofill-btn-text">⚡ Compila Dati</span>
+            </button>
+          </div>
+          <div id="autofill-status-msg" class="autofill-status-msg" style="display: none;"></div>
+        </div>
 
         <div class="form-grid">
           <!-- Colonna 1: Dati Base -->
@@ -699,6 +730,37 @@
 
       <form id="want-form" class="modal-form">
         <input type="hidden" id="form-want-id">
+        <input type="hidden" id="form-want-blueprint-id">
+        <input type="hidden" id="form-want-trader-url">
+        <input type="hidden" id="form-want-ygoprodeck-url">
+        <input type="hidden" id="form-want-image-url">
+        <input type="hidden" id="form-want-image-url-large">
+        <input type="hidden" id="form-want-image-url-cropped">
+        <input type="hidden" id="form-want-card-type">
+        <input type="hidden" id="form-want-desc">
+        <input type="hidden" id="form-want-archetype">
+        <input type="hidden" id="form-want-atk">
+        <input type="hidden" id="form-want-def">
+        <input type="hidden" id="form-want-level">
+        <input type="hidden" id="form-want-attribute">
+
+        <!-- CardTrader 1-Click Auto-Fill Box (Wants) -->
+        <div class="autofill-box" id="want-autofill-box">
+          <div class="autofill-header">
+            <span class="autofill-icon">⚡</span>
+            <div>
+              <strong>Compilazione Automatica 1-Click con CardTrader & YGOPRODeck</strong>
+              <p class="autofill-sub">Incolla il link CardTrader o l'ID Blueprint per importare istantaneamente il want con artwork HD e quotazioni minime!</p>
+            </div>
+          </div>
+          <div class="autofill-input-row">
+            <input type="text" id="want-form-autofill-url" class="autofill-input" placeholder="Incolla link CardTrader (es. https://www.cardtrader.com/it/cards/80186...) o ID Blueprint">
+            <button type="button" class="btn btn-ct-sync" id="want-btn-autofill-fetch" style="white-space: nowrap;">
+              <span id="want-autofill-btn-text">⚡ Compila Dati</span>
+            </button>
+          </div>
+          <div id="want-autofill-status-msg" class="autofill-status-msg" style="display: none;"></div>
+        </div>
 
         <div class="form-grid">
           <!-- Colonna 1: Dati Want -->
