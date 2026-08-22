@@ -1003,10 +1003,13 @@
       const cmItaUrl = urls.cmItaUrl;
       const cmCodeUrl = urls.cmCodeUrl;
       const cmEngUrl = urls.cmEngUrl;
+      const cmBestUrl = urls.cmBestUrl;
       const ctItaUrl = urls.ctItaUrl;
       const ctCodeUrl = urls.ctCodeUrl;
       const ctEngUrl = urls.ctEngUrl;
+      const ctBestUrl = urls.ctBestUrl;
       const ebUrl = urls.ebUrl;
+      const ebItaUrl = urls.ebItaUrl;
       const ygoUrl = urls.ygoUrl;
 
       // Platform trends
@@ -1371,17 +1374,21 @@
         statusBadge = `<span class="target-status-badge over">+${formatEuro(Math.abs(diff))} sopra</span>`;
       }
 
-      // Italian localized market search URLs
-      const itaName = want.name;
-      const engName = want.englishName || want.name;
-      const code = want.code;
-
-      const cmItaUrl = `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(itaName)}`;
-      const cmCodeUrl = `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(code)}`;
-      const cmEngUrl = `https://www.cardmarket.com/it/YuGiOh/Products/Search?searchString=${encodeURIComponent(engName)}`;
-      const ctItaUrl = `https://www.cardtrader.com/it/search?query=${encodeURIComponent(itaName)}`;
-      const ctCodeUrl = `https://www.cardtrader.com/it/search?query=${encodeURIComponent(code)}`;
-      const ebUrl = `https://www.ebay.it/sch/i.html?_nkw=${encodeURIComponent('yugioh ' + itaName + ' ' + code)}`;
+      const urls = getCardUrls(want);
+      const itaName = urls.itaName;
+      const engName = urls.engName;
+      const code = urls.code;
+      const cmItaUrl = urls.cmItaUrl;
+      const cmCodeUrl = urls.cmCodeUrl;
+      const cmEngUrl = urls.cmEngUrl;
+      const cmBestUrl = urls.cmBestUrl;
+      const ctItaUrl = urls.ctItaUrl;
+      const ctCodeUrl = urls.ctCodeUrl;
+      const ctEngUrl = urls.ctEngUrl;
+      const ctBestUrl = urls.ctBestUrl;
+      const ebUrl = urls.ebUrl;
+      const ebItaUrl = urls.ebItaUrl;
+      const ygoUrl = urls.ygoUrl;
 
       const cmTrendInfo = getPlatformTrend(want.cmMin, want.cmTrend, want.baseCmMin);
       const ctTrendInfo = getPlatformTrend(want.ctMin, want.ctTrend, want.baseCtMin);
@@ -3304,24 +3311,18 @@
       const authModal = document.getElementById("auth-modal");
       const authLoginCard = document.getElementById("auth-login-card");
       const authSetupCard = document.getElementById("auth-setup-card");
+      if (!authModal) return;
 
-      if (!data.isSetup) {
-        // 2FA not configured yet -> Show Setup Screen
+      if (data.isSetup && !data.isAuthenticated) {
+        // 2FA configured on server, but user needs to login -> Show Login Screen
         authModal.style.display = "flex";
         authModal.setAttribute("aria-hidden", "false");
-        authLoginCard.style.display = "none";
-        authSetupCard.style.display = "block";
-        await load2FASetupData();
-      } else if (!data.isAuthenticated) {
-        // 2FA configured, but user needs to login -> Show Login Screen
-        authModal.style.display = "flex";
-        authModal.setAttribute("aria-hidden", "false");
-        authLoginCard.style.display = "block";
-        authSetupCard.style.display = "none";
+        if (authLoginCard) authLoginCard.style.display = "block";
+        if (authSetupCard) authSetupCard.style.display = "none";
         const pwdInput = document.getElementById("auth-input-password");
         if (pwdInput) setTimeout(() => pwdInput.focus(), 150);
       } else {
-        // Authenticated!
+        // Authenticated or 2FA not enabled on server
         authModal.style.display = "none";
         authModal.setAttribute("aria-hidden", "true");
       }
