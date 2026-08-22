@@ -3313,8 +3313,15 @@
       const authSetupCard = document.getElementById("auth-setup-card");
       if (!authModal) return;
 
-      if (data.isSetup && !data.isAuthenticated) {
-        // 2FA configured on server, but user needs to login -> Show Login Screen
+      if (!data.isSetup) {
+        // 2FA non ancora configurato -> Mostra la schermata per impostare PIN e associare Google Authenticator con QR Code
+        authModal.style.display = "flex";
+        authModal.setAttribute("aria-hidden", "false");
+        if (authLoginCard) authLoginCard.style.display = "none";
+        if (authSetupCard) authSetupCard.style.display = "block";
+        await load2FASetupData();
+      } else if (!data.isAuthenticated) {
+        // 2FA configurato, autenticazione richiesta -> Mostra schermata di Login PIN + Codice Authenticator
         authModal.style.display = "flex";
         authModal.setAttribute("aria-hidden", "false");
         if (authLoginCard) authLoginCard.style.display = "block";
@@ -3322,7 +3329,7 @@
         const pwdInput = document.getElementById("auth-input-password");
         if (pwdInput) setTimeout(() => pwdInput.focus(), 150);
       } else {
-        // Authenticated or 2FA not enabled on server
+        // Autenticato!
         authModal.style.display = "none";
         authModal.setAttribute("aria-hidden", "true");
       }
