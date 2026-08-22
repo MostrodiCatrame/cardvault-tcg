@@ -211,4 +211,24 @@ CardVault supporta l'universo multi-gioco collezionistico consentendo di gestire
 
 ---
 
+## 13. 🥧 Ripartizione del Valore & Grafico a Torta (Donut Chart) con Inclusione/Esclusione Dinamica
+
+Per avere una visione chiara dell'impatto economico di ogni singola carta sul portafoglio complessivo, CardVault include un modulo analitico di **Allocazione del Capitale**:
+
+### 📊 Grafico a Torta / Donut Chart Interattivo
+- **Rappresentazione Proporzionale SVG**: Ogni carta inclusa nel totale occupa uno spicchio colorato proporzionale al suo valore di mercato sul totale.
+- **Badge Centrale Live**: Mostra il valore economico complessivo delle carte selezionate e il conteggio carte incluse.
+- **Tooltip Flottante**: Passando il cursore sopra uno spicchio vengono visualizzati Nome Carta, Codice, Rarità, Valore in € e percentuale esatta d'impatto sul totale (es. `12.5% del totale`).
+
+### 🎚️ Sistema di Inclusione / Esclusione dal Totale (Spunta / Toggle)
+- **Checkbox in Tabella e Schede**: Nella prima colonna della tabella (`Colonna Calcolo`) e in ogni scheda della griglia è presente una casella di spunta per includere o escludere all'istante la carta dal conto.
+- **Ricalcolo KPI Istantaneo**: Escludendo una o più carte, il Valore Stimato, la Media Minima e il Grafico a Torta si ricalcolano in tempo reale escludendo quelle voci (le righe escluse appaiono leggermente oscurate per un feedback visivo immediato).
+- **Pulsanti di Azione Rapida**:
+  - `✅ Includi Tutte`: Riattiva tutte le carte correntemente visibili.
+  - `❌ Escludi Tutte`: Azzera il conto per isolare solo specifiche carte.
+  - `Mostra / Nascondi Grafico`: Permette di comprimere il modulo grafico per risparmiare spazio visivo.
+- **Persistenza Locale**: Le tue preferenze di inclusione/esclusione vengono salvate in memoria locale nel browser (`localStorage`), rimanendo conservate anche ricaricando la pagina.
+
+---
+
 *Documentazione aggiornata per CardVault TCG Multi-TCG Edition • Master Collection • Realizzato per Fgavagnin.*

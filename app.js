@@ -437,10 +437,72 @@
     saveWantsData();
 
     lastUpdated = localStorage.getItem(STORAGE_KEY_LAST_UPDATE) || new Date().toLocaleString("it-IT");
+    loadExcludedCards();
   }
 
   const STORAGE_KEY_AUTH_TOKEN = "cardvault_session_token_v2";
+  const STORAGE_KEY_EXCLUDED_CARDS = "cardvault_excluded_cards_v1";
   let currentBrandFilter = "all";
+  let excludedCardIds = new Set();
+
+  function loadExcludedCards() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY_EXCLUDED_CARDS) || "[]");
+      excludedCardIds = new Set(saved);
+    } catch (e) {
+      excludedCardIds = new Set();
+    }
+  }
+
+  function saveExcludedCards() {
+    localStorage.setItem(STORAGE_KEY_EXCLUDED_CARDS, JSON.stringify(Array.from(excludedCardIds)));
+  }
+
+  function toggleCardInclusion(cardId) {
+    if (excludedCardIds.has(cardId)) {
+      excludedCardIds.delete(cardId);
+      showToast("Carta inclusa nel calcolo totale");
+    } else {
+      excludedCardIds.add(cardId);
+      showToast("Carta esclusa dal calcolo");
+    }
+    saveExcludedCards();
+    render();
+  }
+
+  const DONUT_COLORS = [
+    "#f59e0b", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6",
+    "#ec4899", "#06b6d4", "#14b8a6", "#f97316", "#a855f7",
+    "#6366f1", "#84cc16", "#e11d48", "#0ea5e9", "#d97706",
+    "#eab308", "#22c55e", "#2563eb", "#9333ea", "#db2777"
+  ];
+
+  function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+    const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+    return {
+      x: centerX + (radius * Math.cos(angleInRadians)),
+      y: centerY + (radius * Math.sin(angleInRadians))
+    };
+  }
+
+  function describeDonutSlice(x, y, radius, innerRadius, startAngle, endAngle) {
+    if (endAngle - startAngle >= 359.99) {
+      endAngle = 359.99;
+    }
+    const start = polarToCartesian(x, y, radius, endAngle);
+    const end = polarToCartesian(x, y, radius, startAngle);
+    const innerStart = polarToCartesian(x, y, innerRadius, endAngle);
+    const innerEnd = polarToCartesian(x, y, innerRadius, startAngle);
+    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+    return [
+      "M", start.x, start.y,
+      "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y,
+      "L", innerEnd.x, innerEnd.y,
+      "A", innerRadius, innerRadius, 0, largeArcFlag, 1, innerStart.x, innerStart.y,
+      "Z"
+    ].join(" ");
+  }
 
   function getGameBadgeHtml(gameStr) {
     const g = (gameStr || "yugioh").toLowerCase();
@@ -955,11 +1017,13 @@
 
   function updatePortfolioKPIs(filteredList) {
     const list = filteredList || cards;
+    const includedList = list.filter(card => !excludedCardIds.has(card.id));
+
     let totalTrend = 0, totalMin = 0, cmTotal = 0, ctTotal = 0, ebTotal = 0;
     let upCount = 0, stableCount = 0, downCount = 0;
     let topCard = null, maxTrendVal = -1;
 
-    list.forEach(card => {
+    includedList.forEach(card => {
       const avg = getCardAverages(card);
       totalTrend += avg.avgTrend;
       totalMin += avg.avgMin;
@@ -978,7 +1042,7 @@
       }
     });
 
-    // Update brand counters
+    // Update brand counters (calculated on all portfolio cards)
     const ygoCount = cards.filter(c => (c.game || "yugioh").toLowerCase() === "yugioh").length;
     const pkmCount = cards.filter(c => (c.game || "").toLowerCase() === "pokemon").length;
     const mtgCount = cards.filter(c => (c.game || "").toLowerCase() === "magic").length;
@@ -1001,14 +1065,20 @@
     kpiCmTotal.textContent = formatEuro(cmTotal);
     kpiCtTotal.textContent = formatEuro(ctTotal);
     kpiEbTotal.textContent = formatEuro(ebTotal);
-    kpiCardsCount.textContent = `${list.length} ${list.length === 1 ? 'Carta' : 'Carte'}`;
+
+    const excludedCount = list.length - includedList.length;
+    if (excludedCount > 0) {
+      kpiCardsCount.textContent = `${includedList.length}/${list.length} (${excludedCount} escluse)`;
+    } else {
+      kpiCardsCount.textContent = `${list.length} ${list.length === 1 ? 'Carta' : 'Carte'}`;
+    }
     tabCountPortfolio.textContent = cards.length;
 
     kpiTrendUp.textContent = upCount;
     kpiTrendStable.textContent = stableCount;
     kpiTrendDown.textContent = downCount;
 
-    const totalCount = list.length || 1;
+    const totalCount = includedList.length || 1;
     const upPct = (upCount / totalCount) * 100;
     const stablePct = (stableCount / totalCount) * 100;
     const downPct = (downCount / totalCount) * 100;
@@ -1029,14 +1099,185 @@
       kpiTopCardMeta.textContent = "-";
       kpiTopCardVal.textContent = "€ 0,00";
     }
+
+    renderAllocationChart(list);
+  }
+
+  // ==========================================
+  // ALLOCATION DONUT / PIE CHART RENDERING
+  // ==========================================
+  function renderAllocationChart(list) {
+    const svgEl = document.getElementById("donut-svg");
+    const centerValEl = document.getElementById("donut-center-val");
+    const centerCountEl = document.getElementById("donut-center-count");
+    const breakdownListEl = document.getElementById("breakdown-cards-list");
+    const summaryInfoEl = document.getElementById("breakdown-summary-info");
+    const tooltipEl = document.getElementById("donut-tooltip");
+
+    if (!svgEl || !breakdownListEl) return;
+
+    const cardsToProcess = (list || cards).map(card => {
+      const avg = getCardAverages(card);
+      const val = avg.avgTrend > 0 ? avg.avgTrend : (avg.avgMin || 0);
+      const isExcluded = excludedCardIds.has(card.id);
+      return {
+        card,
+        val,
+        isExcluded
+      };
+    });
+
+    // Sort descending by value
+    cardsToProcess.sort((a, b) => b.val - a.val);
+
+    // Assign colors
+    cardsToProcess.forEach((item, idx) => {
+      item.color = DONUT_COLORS[idx % DONUT_COLORS.length];
+    });
+
+    const includedCards = cardsToProcess.filter(c => !c.isExcluded && c.val > 0);
+    const totalIncludedVal = includedCards.reduce((sum, c) => sum + c.val, 0);
+
+    // Update center badge
+    if (centerValEl) centerValEl.textContent = formatEuro(totalIncludedVal);
+    if (centerCountEl) centerCountEl.textContent = `${includedCards.length} / ${cardsToProcess.length} Carte`;
+    if (summaryInfoEl) {
+      const pct = cardsToProcess.length > 0 ? ((includedCards.length / cardsToProcess.length) * 100).toFixed(0) : 0;
+      summaryInfoEl.textContent = `${includedCards.length} carte incluse (${pct}%) • ${formatEuro(totalIncludedVal)}`;
+    }
+
+    // Render SVG Slices
+    svgEl.innerHTML = "";
+    if (totalIncludedVal <= 0 || includedCards.length === 0) {
+      const emptyCircle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      emptyCircle.setAttribute("cx", "160");
+      emptyCircle.setAttribute("cy", "160");
+      emptyCircle.setAttribute("r", "115");
+      emptyCircle.setAttribute("fill", "none");
+      emptyCircle.setAttribute("stroke", "rgba(255, 255, 255, 0.08)");
+      emptyCircle.setAttribute("stroke-width", "50");
+      svgEl.appendChild(emptyCircle);
+    } else if (includedCards.length === 1) {
+      const item = includedCards[0];
+      const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      pathEl.setAttribute("d", describeDonutSlice(160, 160, 140, 90, 0, 359.99));
+      pathEl.setAttribute("fill", item.color);
+      pathEl.setAttribute("class", "donut-slice");
+      pathEl.setAttribute("data-card-id", item.card.id);
+      setupDonutSliceEvents(pathEl, item, 100, tooltipEl);
+      svgEl.appendChild(pathEl);
+    } else {
+      let currentAngle = 0;
+      includedCards.forEach(item => {
+        const sliceAngle = (item.val / totalIncludedVal) * 360;
+        const endAngle = currentAngle + sliceAngle;
+        const pct = ((item.val / totalIncludedVal) * 100).toFixed(1);
+
+        const pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        pathEl.setAttribute("d", describeDonutSlice(160, 160, 140, 90, currentAngle, endAngle));
+        pathEl.setAttribute("fill", item.color);
+        pathEl.setAttribute("class", "donut-slice");
+        pathEl.setAttribute("data-card-id", item.card.id);
+
+        setupDonutSliceEvents(pathEl, item, pct, tooltipEl);
+        svgEl.appendChild(pathEl);
+
+        currentAngle = endAngle;
+      });
+    }
+
+    // Render Breakdown List
+    breakdownListEl.innerHTML = "";
+    cardsToProcess.forEach(item => {
+      const pct = (totalIncludedVal > 0 && !item.isExcluded)
+        ? ((item.val / totalIncludedVal) * 100).toFixed(1)
+        : "0.0";
+
+      const rowEl = document.createElement("div");
+      rowEl.className = `breakdown-item ${item.isExcluded ? 'excluded' : ''}`;
+      rowEl.innerHTML = `
+        <div class="breakdown-color-dot" style="background-color: ${item.isExcluded ? '#6b7280' : item.color};"></div>
+        <div class="breakdown-name-wrap">
+          <div class="breakdown-card-name" title="${escapeHtml(item.card.name)}">
+            ${getGameBadgeHtml(item.card.game)}${escapeHtml(item.card.name)}
+          </div>
+          <div class="breakdown-card-sub">${escapeHtml(item.card.code)} • ${escapeHtml(item.card.rarity)}</div>
+        </div>
+        <div class="breakdown-stats-wrap">
+          <div class="breakdown-val">${formatEuro(item.val)}</div>
+          <div class="breakdown-pct" style="color: ${item.isExcluded ? 'var(--text-muted)' : '#38bdf8'};">${pct}%</div>
+        </div>
+        <button type="button" class="calc-toggle-btn" data-toggle-id="${item.card.id}" title="${item.isExcluded ? 'Includi nel calcolo totale' : 'Escludi dal calcolo totale'}">
+          ${item.isExcluded ? '⬜' : '✅'}
+        </button>
+      `;
+
+      const toggleBtn = rowEl.querySelector(".calc-toggle-btn");
+      if (toggleBtn) {
+        toggleBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleCardInclusion(item.card.id);
+        });
+      }
+
+      rowEl.addEventListener("click", (e) => {
+        if (!e.target.closest(".calc-toggle-btn")) {
+          openCardLightbox(item.card.id);
+        }
+      });
+
+      breakdownListEl.appendChild(rowEl);
+    });
+  }
+
+  function setupDonutSliceEvents(pathEl, item, pct, tooltipEl) {
+    pathEl.addEventListener("mouseenter", () => {
+      if (!tooltipEl) return;
+      tooltipEl.innerHTML = `
+        <strong>${escapeHtml(item.card.name)}</strong><br/>
+        <span style="color: var(--text-muted);">${escapeHtml(item.card.code)} • ${escapeHtml(item.card.rarity)}</span><br/>
+        <span style="color: #fef08a; font-weight: 700;">${formatEuro(item.val)}</span> • <span style="color: #38bdf8; font-weight: 700;">${pct}% del totale</span>
+      `;
+      tooltipEl.style.display = "block";
+    });
+
+    pathEl.addEventListener("mousemove", (e) => {
+      if (!tooltipEl) return;
+      const visualContainer = pathEl.closest(".donut-visual-container");
+      if (!visualContainer) return;
+      const rect = visualContainer.getBoundingClientRect();
+      tooltipEl.style.left = `${e.clientX - rect.left + 15}px`;
+      tooltipEl.style.top = `${e.clientY - rect.top - 20}px`;
+    });
+
+    pathEl.addEventListener("mouseleave", () => {
+      if (tooltipEl) tooltipEl.style.display = "none";
+    });
+
+    pathEl.addEventListener("click", () => {
+      openCardLightbox(item.card.id);
+    });
   }
 
   function renderPortfolioTable(list) {
     tableBody.innerHTML = "";
 
+    // Update Header Checkbox
+    const headerToggleAll = document.getElementById("header-toggle-all-calc");
+    if (headerToggleAll && list.length > 0) {
+      const allIncluded = list.every(c => !excludedCardIds.has(c.id));
+      const noneIncluded = list.every(c => excludedCardIds.has(c.id));
+      headerToggleAll.checked = allIncluded;
+      headerToggleAll.indeterminate = !allIncluded && !noneIncluded;
+    }
+
     list.forEach((card, index) => {
       const avg = getCardAverages(card);
+      const isIncluded = !excludedCardIds.has(card.id);
       const row = document.createElement("tr");
+      if (!isIncluded) {
+        row.classList.add("row-excluded");
+      }
 
       let trendBadgeHtml = "";
       if (card.trendStatus === "up") {
@@ -1069,6 +1310,9 @@
       const ebTrendInfo = getPlatformTrend(card.ebMin, card.ebTrend, card.baseEbTrend);
 
       row.innerHTML = `
+        <td class="col-calc">
+          <input type="checkbox" class="row-calc-checkbox" data-id="${card.id}" ${isIncluded ? 'checked' : ''} title="${isIncluded ? 'Inclusa nel calcolo totale' : 'Esclusa dal calcolo totale'}">
+        </td>
         <td class="col-num">${card.num || (index + 1)}</td>
         <td class="col-card">
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -1195,8 +1439,9 @@
 
     list.forEach(card => {
       const avg = getCardAverages(card);
+      const isIncluded = !excludedCardIds.has(card.id);
       const cardEl = document.createElement("div");
-      cardEl.className = "card-item";
+      cardEl.className = `card-item ${isIncluded ? '' : 'card-excluded'}`;
 
       let trendBadgeHtml = "";
       if (card.trendStatus === "up") {
@@ -1239,6 +1484,12 @@
                 </div>
                 ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
                 <div class="card-cell-sub">${escapeHtml(card.expansion)} • <strong>${escapeHtml(card.code)}</strong></div>
+                <div class="card-calc-toggle-wrap">
+                  <input type="checkbox" class="row-calc-checkbox" data-id="${card.id}" ${isIncluded ? 'checked' : ''} id="grid-calc-${card.id}">
+                  <label for="grid-calc-${card.id}" style="cursor:pointer; font-size: 0.72rem; color: ${isIncluded ? '#e5e7eb' : 'var(--text-muted)'};">
+                    ${isIncluded ? '✓ Inclusa nel totale' : '✕ Esclusa dal totale'}
+                  </label>
+                </div>
               </div>
               ${trendBadgeHtml}
             </div>
@@ -1294,7 +1545,7 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg>
             </button>
             <a href="${cmUrl}" target="_blank" class="action-btn-sm" title="Vedi '${itaName}' su Cardmarket Italia">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg>
             </a>
             <a href="${ctUrl}" target="_blank" class="action-btn-sm" title="Vedi '${itaName}' su CardTrader Italia">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
@@ -2071,6 +2322,76 @@
         if (e.target === apiConfigModal) closeApiConfigModal();
       });
     }
+
+    // Allocation Donut Chart & Card Toggle Actions
+    const btnChartIncludeAll = document.getElementById("btn-chart-include-all");
+    const btnChartExcludeAll = document.getElementById("btn-chart-exclude-all");
+    const btnToggleChart = document.getElementById("btn-toggle-chart");
+    const chartCardBody = document.getElementById("chart-card-body");
+    const chartToggleLabel = document.getElementById("chart-toggle-label");
+    const headerToggleAll = document.getElementById("header-toggle-all-calc");
+
+    if (btnChartIncludeAll) {
+      btnChartIncludeAll.addEventListener("click", () => {
+        const filteredList = getFilteredCards();
+        filteredList.forEach(c => excludedCardIds.delete(c.id));
+        saveExcludedCards();
+        showToast("✅ Tutte le carte sono state incluse nel calcolo del totale!");
+        render();
+      });
+    }
+
+    if (btnChartExcludeAll) {
+      btnChartExcludeAll.addEventListener("click", () => {
+        const filteredList = getFilteredCards();
+        filteredList.forEach(c => excludedCardIds.add(c.id));
+        saveExcludedCards();
+        showToast("❌ Tutte le carte sono state escluse dal calcolo!");
+        render();
+      });
+    }
+
+    if (headerToggleAll) {
+      headerToggleAll.addEventListener("change", () => {
+        const filteredList = getFilteredCards();
+        if (headerToggleAll.checked) {
+          filteredList.forEach(c => excludedCardIds.delete(c.id));
+          showToast("Tutte le carte incluse nel calcolo!");
+        } else {
+          filteredList.forEach(c => excludedCardIds.add(c.id));
+          showToast("Tutte le carte escluse dal calcolo!");
+        }
+        saveExcludedCards();
+        render();
+      });
+    }
+
+    if (btnToggleChart && chartCardBody) {
+      btnToggleChart.addEventListener("click", () => {
+        const isCollapsed = chartCardBody.classList.toggle("collapsed");
+        if (chartToggleLabel) {
+          chartToggleLabel.textContent = isCollapsed ? "Mostra Grafico ▾" : "Nascondi Grafico ▴";
+        }
+        btnToggleChart.setAttribute("aria-expanded", String(!isCollapsed));
+      });
+    }
+
+    // Checkbox change delegation for table and grid
+    document.addEventListener("change", (e) => {
+      const calcCheckbox = e.target.closest(".row-calc-checkbox");
+      if (calcCheckbox) {
+        const cardId = Number(calcCheckbox.dataset.id);
+        if (cardId) {
+          if (calcCheckbox.checked) {
+            excludedCardIds.delete(cardId);
+          } else {
+            excludedCardIds.add(cardId);
+          }
+          saveExcludedCards();
+          render();
+        }
+      }
+    });
 
     // CSV Export & Import & Direct Save
     if (btnExportCsv) btnExportCsv.addEventListener("click", exportToCsv);

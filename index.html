@@ -259,6 +259,60 @@
         </div>
       </section>
 
+      <!-- ============================================== -->
+      <!-- INTERACTIVE PORTFOLIO ALLOCATION DONUT CHART   -->
+      <!-- ============================================== -->
+      <section class="allocation-chart-card" id="allocation-chart-section">
+        <div class="chart-card-header">
+          <div class="chart-header-title-wrap">
+            <span class="chart-header-icon">🥧</span>
+            <div>
+              <h3 class="chart-card-title">Ripartizione del Valore & Allocazione Portafoglio</h3>
+              <p class="chart-card-subtitle">Impatto percentuale di ogni carta sul totale • Disattiva o attiva le carte per simulare i conteggi</p>
+            </div>
+          </div>
+          <div class="chart-header-controls">
+            <button type="button" class="btn btn-sm btn-chart-action" id="btn-chart-include-all" title="Includi tutte le carte nel calcolo totale">
+              <span>✅ Includi Tutte</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-chart-action" id="btn-chart-exclude-all" title="Escludi tutte le carte dal calcolo totale">
+              <span>❌ Escludi Tutte</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-chart-collapse" id="btn-toggle-chart" aria-expanded="true" title="Comprimi o espandi grafico">
+              <span id="chart-toggle-label">Nascondi Grafico ▴</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="chart-card-body" id="chart-card-body">
+          <!-- Donut SVG Area with Central Live Stats -->
+          <div class="donut-visual-container">
+            <div class="donut-wrapper" id="donut-wrapper">
+              <svg viewBox="0 0 320 320" class="donut-svg" id="donut-svg">
+                <!-- Slices dynamically rendered by JS -->
+              </svg>
+              <div class="donut-center-badge" id="donut-center-badge">
+                <span class="dcb-label">Valore Incluso</span>
+                <strong class="dcb-value" id="donut-center-val">€ 0,00</strong>
+                <span class="dcb-sub" id="donut-center-count">0 Carte</span>
+              </div>
+            </div>
+            <div class="donut-tooltip" id="donut-tooltip" style="display: none;"></div>
+          </div>
+
+          <!-- Breakdown List & Toggle Switches -->
+          <div class="breakdown-panel">
+            <div class="breakdown-panel-header">
+              <span class="bph-title">Classifica Peso & Impatto per Carta</span>
+              <span class="bph-info" id="breakdown-summary-info">36 carte incluse (100%)</span>
+            </div>
+            <div class="breakdown-scroll-list" id="breakdown-cards-list">
+              <!-- Dynamically populated card allocation rows with toggle checkboxes -->
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Toolbar: Search, Filters & View Toggle (Portfolio) -->
       <section class="toolbar-section" id="toolbar-portfolio">
         <div class="search-box">
@@ -343,6 +397,9 @@
           <table class="market-table" id="cards-table">
             <thead>
               <tr>
+                <th class="col-calc" title="Includi / Escludi carta dal totale portfolio">
+                  <input type="checkbox" id="header-toggle-all-calc" class="table-header-checkbox" checked title="Includi / Escludi tutte dal calcolo">
+                </th>
                 <th class="col-num">#</th>
                 <th class="col-card">Carta & Dettagli</th>
                 <th class="col-rarity">Rarità & Set</th>
