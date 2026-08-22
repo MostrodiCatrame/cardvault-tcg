@@ -227,7 +227,7 @@ let authConfig = {
   passwordHash: null,
   salt: null,
   totpSecret: null,
-  sessionSecret: crypto.randomBytes(32).toString('hex')
+  sessionSecret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex')
 };
 
 function loadAuthConfig() {
@@ -235,7 +235,7 @@ function loadAuthConfig() {
     try {
       const data = JSON.parse(fs.readFileSync(AUTH_CONFIG_FILE, 'utf-8'));
       if (data && data.enabled) {
-        authConfig = { ...authConfig, ...data };
+        authConfig = { ...authConfig, ...data, enabled: true };
       }
     } catch (e) {}
   }
@@ -256,7 +256,7 @@ function createSessionToken(userId = 'admin', rememberDays = 30) {
 }
 
 function verifySessionToken(token) {
-  if (!authConfig.enabled) return true; // Auth disabled, open access
+  if (!authConfig.enabled) return true; // Auth disabilitata -> accesso libero
   if (!token) return false;
 
   try {
@@ -264,7 +264,7 @@ function verifySessionToken(token) {
     const parts = raw.split(':');
     if (parts.length !== 3) return false;
     const [userId, expiresAtStr, signature] = parts;
-    const expiresAt = parseInt(expiresAtStr);
+    const expiresAt = parseInt(expiresAtStr, 10);
 
     if (isNaN(expiresAt) || Date.now() > expiresAt) return false;
 
@@ -1428,15 +1428,15 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ==========================================
-  // AUTHENTICATION API ROUTES (2FA)
+  // AUTHENTICATION API ROUTES (2FA & Access Token)
   // ==========================================
   if (req.url === '/api/auth/status' && req.method === 'GET') {
     const token = getBearerToken(req);
     const isValid = verifySessionToken(token);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
-      isSetup: authConfig.enabled,
-      isAuthenticated: isValid
+      isSetup: authConfig.enabled && !!authConfig.passwordHash,
+      isAuthenticated: !authConfig.enabled || isValid
     }));
     return;
   }
@@ -1485,12 +1485,12 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { password, secret, otpCode } = JSON.parse(body);
+        const { password, secret, otpCode } = JSON.parse(body || '{}');
         if (!password || password.length < 4) {
-          throw new Error("La password deve contenere almeno 4 caratteri");
+          throw new Error("Il PIN / Master Password deve contenere almeno 4 caratteri");
         }
         if (!secret || !verifyTOTP(secret, otpCode)) {
-          throw new Error("Codice OTP non valido o scaduto. Inserisci il codice a 6 cifre visualizzato sulla tua app");
+          throw new Error("Codice OTP non valido o scaduto. Inserisci il codice a 6 cifre visualizzato sulla tua app Authenticator");
         }
 
         const salt = crypto.randomBytes(16).toString('hex');
@@ -1515,31 +1515,33 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Login: Check Master Password + 6-digit TOTP Code
+  // Login: Verifica Master PIN / Password + Codice OTP a 6 Cifre Authenticator
   if (req.url === '/api/auth/login' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { password, otpCode, rememberMe } = JSON.parse(body);
+        const { password, otpCode, rememberMe } = JSON.parse(body || '{}');
+        const days = rememberMe !== false ? 30 : 1;
+
         if (!authConfig.enabled) {
-          // If not configured, allow access and create token
-          const token = createSessionToken('admin', 30);
+          const token = createSessionToken('admin', days);
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true, token: token }));
           return;
         }
 
+        // 1. Verifica PIN / Master Password
         const calculatedHash = hashPassword(password || '', authConfig.salt);
         if (calculatedHash !== authConfig.passwordHash) {
-          throw new Error("Password non corretta");
+          throw new Error("PIN o Master Password non corretta");
         }
 
+        // 2. Verifica Codice OTP Authenticator
         if (!verifyTOTP(authConfig.totpSecret, otpCode)) {
-          throw new Error("Codice OTP a 6 cifre non valido o scaduto");
+          throw new Error("Codice Authenticator a 6 cifre non valido o scaduto");
         }
 
-        const days = rememberMe ? 30 : 1;
         const token = createSessionToken('admin', days);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, token: token }));
@@ -1554,15 +1556,22 @@ const server = http.createServer(async (req, res) => {
   // ==========================================
   // AUTH MIDDLEWARE FOR SENSITIVE API ENDPOINTS
   // ==========================================
-  const isProtectedApi = (req.url.startsWith('/api/save') ||
-                          req.url.startsWith('/api/cardtrader') ||
-                          (req.url.startsWith('/api/portfolio') && req.method === 'POST'));
+  const isProtectedApi = authConfig.enabled && (
+    req.url === '/api/portfolio' ||
+    req.url.startsWith('/api/save') ||
+    req.url.startsWith('/api/cardtrader') ||
+    req.url.startsWith('/api/card/autofill') ||
+    req.url.startsWith('/api/justtcg') ||
+    req.url.startsWith('/api/reset-baseline') ||
+    req.url.startsWith('/api/import-csv') ||
+    (req.url.startsWith('/api/portfolio') && req.method === 'POST')
+  );
 
-  if (isProtectedApi && authConfig.enabled) {
+  if (isProtectedApi) {
     const token = getBearerToken(req);
     if (!verifySessionToken(token)) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: "Accesso non autorizzato. Effettua il login 2FA." }));
+      res.end(JSON.stringify({ error: "Accesso non autorizzato. Inserisci il token di accesso o effettua il login." }));
       return;
     }
   }

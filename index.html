@@ -1071,8 +1071,8 @@
     </div>
   </div>
 
-  <!-- Modal: 2FA Authentication Overlay & Setup (Locked by Default) -->
-  <div class="auth-overlay-backdrop" id="auth-modal" aria-hidden="false" role="dialog">
+  <!-- Modal: 2FA Authentication Overlay & Setup (PIN + Google Authenticator) -->
+  <div class="auth-overlay-backdrop" id="auth-modal" style="display: none;" aria-hidden="true" role="dialog">
     <div class="auth-card" id="auth-login-card" style="display: block;">
       <div class="auth-header">
         <div class="auth-icon-shield">
@@ -1082,19 +1082,19 @@
           </svg>
         </div>
         <h2>Accesso Protetto 2FA</h2>
-        <p class="auth-subtitle">Inserisci la tua Master Password e il codice dall'app Authenticator</p>
+        <p class="auth-subtitle">Inserisci il tuo PIN / Password e il codice dall'app Authenticator</p>
       </div>
 
       <form id="auth-login-form" class="auth-form-body">
         <div class="auth-form-group">
-          <label for="auth-input-password">Master Password</label>
+          <label for="auth-input-password">Master PIN / Password</label>
           <div class="auth-input-wrap">
-            <input type="password" id="auth-input-password" placeholder="La tua password segreta" required autocomplete="current-password">
+            <input type="password" id="auth-input-password" placeholder="Inserisci il tuo PIN o password" required autocomplete="current-password">
             <button type="button" class="auth-toggle-pwd" id="btn-toggle-pwd" aria-label="Mostra/Nascondi password">👁️</button>
           </div>
         </div>
 
-        <div class="auth-form-group">
+        <div class="auth-form-group" id="auth-otp-group">
           <label for="auth-input-otp">Codice OTP a 6 Cifre</label>
           <input type="text" id="auth-input-otp" class="auth-otp-input" placeholder="123 456" maxlength="7" pattern="[0-9 ]*" inputmode="numeric" required autocomplete="one-time-code">
           <span class="auth-input-hint">Da Google Authenticator, Microsoft Authenticator o Apple</span>

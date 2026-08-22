@@ -136,10 +136,14 @@ Tutte le operazioni effettuate nell'app vengono scritte in tempo reale nel file:
 2. Il server si avvierà in background e aprirà il browser su **`http://localhost:3000`**.
 
 ### 📱 B. Utilizzo su Cloud & Telefono (Render.com)
-1. Apri la dashboard del tuo servizio Render.
-2. Assicurati che nelle variabili d'ambiente (**Environment**) sia impostata la chiave:
+1. Apri la dashboard del tuo servizio su **Render.com**.
+2. Nelle variabili d'ambiente (**Environment**) imposta:
    - `JUSTTCG_API_KEY`: `tcg_f0527f27d0f34dfa9c3480fa16e4e286`
-3. Apri **`https://cardvault-tcg.onrender.com`** da qualsiasi smartphone o browser per consultare e sincronizzare la collezione ovunque!
+   - `CARDTRADER_TOKEN`: (il tuo Bearer Token di CardTrader)
+3. Apri **`https://cardvault-tcg.onrender.com`** da smartphone o PC.
+4. **Accesso Sicuro 2FA**:
+   - Inserisci il tuo **Master PIN / Password** e il **Codice a 6 cifre dall'app Google Authenticator**.
+   - Con la spunta *"Ricorda questo dispositivo (30 giorni)"* attiva, il tuo smartphone/browser resterà sbloccato per un mese intero senza dover reinserire le credenziali ad ogni apertura.
 
 ---
 

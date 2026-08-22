@@ -3387,14 +3387,28 @@
       });
     }
 
-    // Login Form Submit
+    // URL Parameter 1-Click Access Token Capture (e.g. ?token=... or ?key=...)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenParam = urlParams.get("token") || urlParams.get("key") || urlParams.get("auth");
+      if (tokenParam && tokenParam.trim()) {
+        localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, tokenParam.trim());
+        const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({ path: cleanUrl }, "", cleanUrl);
+        showToast("🔑 Access Token memorizzato sul dispositivo!");
+      }
+    } catch(e) {}
+
+    // Login Form Submit (PIN + Authenticator OTP)
     if (authLoginForm) {
       authLoginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const pwd = document.getElementById("auth-input-password").value;
-        const rawOtp = document.getElementById("auth-input-otp").value;
+        const otpInput = document.getElementById("auth-input-otp");
+        const rawOtp = otpInput ? otpInput.value : "";
         const otp = rawOtp.replace(/\s+/g, "");
-        const rememberMe = document.getElementById("auth-remember-me").checked;
+        const rememberMeEl = document.getElementById("auth-remember-me");
+        const rememberMe = rememberMeEl ? rememberMeEl.checked : true;
         const btnSubmit = document.getElementById("btn-submit-login");
 
         authErrorMsg.style.display = "none";
@@ -3415,15 +3429,15 @@
             document.getElementById("auth-modal").setAttribute("aria-hidden", "true");
             showToast("🔓 Accesso 2FA effettuato con successo!");
             await checkServerConnection();
+            await syncFromServer();
             render();
           } else {
-            throw new Error(data.error || "Password o Codice OTP non validi");
+            throw new Error(data.error || "PIN o Codice Authenticator non validi");
           }
         } catch (err) {
           authErrorMsg.textContent = err.message;
           authErrorMsg.style.display = "block";
-          document.getElementById("auth-input-otp").value = "";
-          document.getElementById("auth-input-otp").focus();
+          if (otpInput && otpInput.value) otpInput.value = "";
         } finally {
           btnSubmit.disabled = false;
           btnSubmit.innerHTML = "<span>🔒 Sblocca CardVault</span>";
