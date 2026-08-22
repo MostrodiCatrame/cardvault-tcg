@@ -198,12 +198,22 @@ function generateSecret(length = 20) {
   return base32;
 }
 
+const usedOtpTokens = new Map(); // code -> timestamp
+
 function verifyTOTP(secret, userCode, window = 1) {
   if (!secret || !userCode) return false;
+  const codeStr = String(userCode).trim().replace(/\s+/g, '');
+  if (codeStr.length !== 6 || !/^\d{6}$/.test(codeStr)) return false;
+
+  // Anti-Replay: check if this code was already used within the last 90 seconds
+  const lastUsed = usedOtpTokens.get(codeStr);
+  if (lastUsed && (Date.now() - lastUsed) < 90000) {
+    return false; // Code was already consumed!
+  }
+
   const epoch = Math.floor(Date.now() / 1000);
   const currentTime = Math.floor(epoch / 30);
   const key = base32Decode(secret);
-  const codeStr = (userCode || '').trim();
 
   for (let errorWindow = -window; errorWindow <= window; errorWindow++) {
     const time = currentTime + errorWindow;
@@ -213,7 +223,15 @@ function verifyTOTP(secret, userCode, window = 1) {
     const offset = hmac[hmac.length - 1] & 0xf;
     const code = ((hmac[offset] & 0x7f) << 24 | (hmac[offset + 1] & 0xff) << 16 | (hmac[offset + 2] & 0xff) << 8 | (hmac[offset + 3] & 0xff)) % 1000000;
     const genCode = code.toString().padStart(6, '0');
-    if (genCode === codeStr) return true;
+    if (genCode === codeStr) {
+      // Mark code as used immediately
+      usedOtpTokens.set(codeStr, Date.now());
+      // Clean up old entries older than 2 minutes
+      for (const [c, ts] of usedOtpTokens.entries()) {
+        if (Date.now() - ts > 120000) usedOtpTokens.delete(c);
+      }
+      return true;
+    }
   }
   return false;
 }
@@ -231,13 +249,18 @@ let authConfig = {
 };
 
 function loadAuthConfig() {
-  if (fs.existsSync(AUTH_CONFIG_FILE)) {
-    try {
-      const data = JSON.parse(fs.readFileSync(AUTH_CONFIG_FILE, 'utf-8'));
-      if (data && data.enabled) {
-        authConfig = { ...authConfig, ...data, enabled: true };
-      }
-    } catch (e) {}
+  const possiblePaths = getPossibleTokenPaths('.auth_config.json');
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
+        if (data && data.enabled && data.passwordHash && data.totpSecret) {
+          authConfig = { ...authConfig, ...data, enabled: true };
+          console.log('[CardVault] 2FA caricata e attiva da:', p);
+          return;
+        }
+      } catch (e) {}
+    }
   }
 }
 loadAuthConfig();
@@ -1524,22 +1547,19 @@ const server = http.createServer(async (req, res) => {
         const { password, otpCode, rememberMe } = JSON.parse(body || '{}');
         const days = rememberMe !== false ? 30 : 1;
 
-        if (!authConfig.enabled) {
-          const token = createSessionToken('admin', days);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, token: token }));
-          return;
+        if (!authConfig.enabled || !authConfig.passwordHash || !authConfig.totpSecret) {
+          throw new Error("La protezione 2FA non è ancora stata configurata. Clicca in basso per impostare il tuo PIN e associare il QR Code con Authenticator.");
         }
 
-        // 1. Verifica PIN / Master Password
+        // 1. Verifica PIN / Master Password con PBKDF2
         const calculatedHash = hashPassword(password || '', authConfig.salt);
         if (calculatedHash !== authConfig.passwordHash) {
           throw new Error("PIN o Master Password non corretta");
         }
 
-        // 2. Verifica Codice OTP Authenticator
+        // 2. Verifica Codice OTP Authenticator (Anti-Replay e finestra di 30s)
         if (!verifyTOTP(authConfig.totpSecret, otpCode)) {
-          throw new Error("Codice Authenticator a 6 cifre non valido o scaduto");
+          throw new Error("Codice Authenticator a 6 cifre non valido o già scaduto/utilizzato. Inserisci il codice a 6 cifre visualizzato adesso sull'app Authenticator.");
         }
 
         const token = createSessionToken('admin', days);
