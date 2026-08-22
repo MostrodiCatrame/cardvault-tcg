@@ -175,46 +175,42 @@ function getJustTcgUsageStats() {
 const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 function base32Decode(base32) {
-  let cleaned = base32.toUpperCase().replace(/=+$/, '').replace(/\s+/g, '');
+  if (!base32) return Buffer.alloc(0);
+  const cleaned = String(base32).toUpperCase().replace(/[\s\-_=]/g, '');
   let bits = '';
   for (let i = 0; i < cleaned.length; i++) {
-    let val = BASE32_CHARS.indexOf(cleaned.charAt(i));
+    const val = BASE32_CHARS.indexOf(cleaned.charAt(i));
     if (val === -1) continue;
     bits += val.toString(2).padStart(5, '0');
   }
-  let bytes = [];
+  const bytes = [];
   for (let i = 0; i + 8 <= bits.length; i += 8) {
     bytes.push(parseInt(bits.substr(i, 8), 2));
   }
   return Buffer.from(bytes);
 }
 
-function generateSecret(length = 20) {
+function generateSecret(length = 16) {
   const bytes = crypto.randomBytes(length);
   let base32 = '';
-  for (let i = 0; i < bytes.length; i++) {
+  for (let i = 0; i < length; i++) {
     base32 += BASE32_CHARS.charAt(bytes[i] % 32);
   }
   return base32;
 }
 
-const usedOtpTokens = new Map(); // code -> timestamp
-
-function verifyTOTP(secret, userCode, window = 1) {
+function verifyTOTP(secret, userCode, window = 2) {
   if (!secret || !userCode) return false;
+  const cleanSecret = String(secret).toUpperCase().replace(/[\s\-_=]/g, '');
   const codeStr = String(userCode).trim().replace(/\s+/g, '');
   if (codeStr.length !== 6 || !/^\d{6}$/.test(codeStr)) return false;
 
-  // Anti-Replay: check if this code was already used within the last 90 seconds
-  const lastUsed = usedOtpTokens.get(codeStr);
-  if (lastUsed && (Date.now() - lastUsed) < 90000) {
-    return false; // Code was already consumed!
-  }
-
   const epoch = Math.floor(Date.now() / 1000);
   const currentTime = Math.floor(epoch / 30);
-  const key = base32Decode(secret);
+  const key = base32Decode(cleanSecret);
+  if (!key || key.length === 0) return false;
 
+  // Window: checks -2, -1, 0, +1, +2 (spanning -60s to +60s for seamless clock sync)
   for (let errorWindow = -window; errorWindow <= window; errorWindow++) {
     const time = currentTime + errorWindow;
     const buf = Buffer.alloc(8);
@@ -224,12 +220,6 @@ function verifyTOTP(secret, userCode, window = 1) {
     const code = ((hmac[offset] & 0x7f) << 24 | (hmac[offset + 1] & 0xff) << 16 | (hmac[offset + 2] & 0xff) << 8 | (hmac[offset + 3] & 0xff)) % 1000000;
     const genCode = code.toString().padStart(6, '0');
     if (genCode === codeStr) {
-      // Mark code as used immediately
-      usedOtpTokens.set(codeStr, Date.now());
-      // Clean up old entries older than 2 minutes
-      for (const [c, ts] of usedOtpTokens.entries()) {
-        if (Date.now() - ts > 120000) usedOtpTokens.delete(c);
-      }
       return true;
     }
   }
@@ -237,7 +227,9 @@ function verifyTOTP(secret, userCode, window = 1) {
 }
 
 function hashPassword(password, salt) {
-  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  const pwd = String(password || '').trim();
+  const s = String(salt || 'cardvault_salt');
+  return crypto.pbkdf2Sync(pwd, s, 10000, 64, 'sha512').toString('hex');
 }
 
 let pendingSetupSecret = null;
@@ -1664,20 +1656,24 @@ const server = http.createServer(async (req, res) => {
     req.on('end', () => {
       try {
         const { password, secret, otpCode } = JSON.parse(body || '{}');
-        if (!password || password.length < 4) {
+        const cleanPassword = String(password || '').trim();
+        const cleanSecret = String(secret || '').toUpperCase().replace(/[\s\-_=]/g, '');
+        const cleanOtp = String(otpCode || '').trim().replace(/\s+/g, '');
+
+        if (!cleanPassword || cleanPassword.length < 4) {
           throw new Error("Il PIN / Master Password deve contenere almeno 4 caratteri");
         }
-        if (!secret || !verifyTOTP(secret, otpCode)) {
+        if (!cleanSecret || !verifyTOTP(cleanSecret, cleanOtp, 2)) {
           throw new Error("Codice OTP non valido o scaduto. Inserisci il codice a 6 cifre visualizzato sulla tua app Authenticator");
         }
 
         const salt = crypto.randomBytes(16).toString('hex');
-        const passwordHash = hashPassword(password, salt);
+        const passwordHash = hashPassword(cleanPassword, salt);
 
         authConfig.enabled = true;
         authConfig.passwordHash = passwordHash;
         authConfig.salt = salt;
-        authConfig.totpSecret = secret;
+        authConfig.totpSecret = cleanSecret;
         authConfig.sessionSecret = authConfig.sessionSecret || DEFAULT_SESSION_SECRET;
         pendingSetupSecret = null;
 
@@ -1701,6 +1697,8 @@ const server = http.createServer(async (req, res) => {
     req.on('end', () => {
       try {
         const { password, otpCode, rememberMe } = JSON.parse(body || '{}');
+        const cleanPassword = String(password || '').trim();
+        const cleanOtp = String(otpCode || '').trim().replace(/\s+/g, '');
         const days = rememberMe !== false ? 30 : 1;
 
         if (!authConfig.enabled || !authConfig.passwordHash || !authConfig.totpSecret) {
@@ -1708,14 +1706,14 @@ const server = http.createServer(async (req, res) => {
         }
 
         // 1. Verifica PIN / Master Password con PBKDF2
-        const calculatedHash = hashPassword(password || '', authConfig.salt);
+        const calculatedHash = hashPassword(cleanPassword, authConfig.salt);
         if (calculatedHash !== authConfig.passwordHash) {
           throw new Error("PIN o Master Password non corretta");
         }
 
-        // 2. Verifica Codice OTP Authenticator (Anti-Replay e finestra di 30s)
-        if (!verifyTOTP(authConfig.totpSecret, otpCode)) {
-          throw new Error("Codice Authenticator a 6 cifre non valido o già scaduto/utilizzato. Inserisci il codice a 6 cifre visualizzato adesso sull'app Authenticator.");
+        // 2. Verifica Codice OTP Authenticator (finestra allargata a +-60s)
+        if (!verifyTOTP(authConfig.totpSecret, cleanOtp, 2)) {
+          throw new Error("Codice Authenticator a 6 cifre non valido o scaduto. Inserisci il codice visualizzato adesso sull'app Authenticator.");
         }
 
         const token = createSessionToken('admin', days);
