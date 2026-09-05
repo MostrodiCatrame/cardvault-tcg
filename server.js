@@ -1,4 +1,4 @@
-// Local & Cloud Server for CardVault TCG
+﻿// Local & Cloud Server for CardVault TCG
 // Include Sincronizzazione CSV, CardTrader API v2 e Sicurezza 2FA (Password + TOTP Google/Microsoft Authenticator)
 
 const http = require('http');
@@ -466,7 +466,7 @@ function extractFilteredCardTraderPrices(items, card) {
       const match1st = ph.first_edition === true;
       return matchLang && matchCond && match1st;
     });
-    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} • ${card.condition || 'NM'} • 1ª Edizione`;
+    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} â€¢ ${card.condition || 'NM'} â€¢ 1Âª Edizione`;
   }
 
   // Level 2: Lang + Condition
@@ -477,7 +477,7 @@ function extractFilteredCardTraderPrices(items, card) {
       const matchCond = targetConds.includes(ph.condition);
       return matchLang && matchCond;
     });
-    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} • ${card.condition || 'NM'}`;
+    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} â€¢ ${card.condition || 'NM'}`;
   }
 
   // Level 3: Lang Only
@@ -495,7 +495,7 @@ function extractFilteredCardTraderPrices(items, card) {
       const ph = p.properties_hash || {};
       return targetConds.includes(ph.condition);
     });
-    if (matched.length > 0) filterLevel = `Globale • ${card.condition || 'NM'}`;
+    if (matched.length > 0) filterLevel = `Globale â€¢ ${card.condition || 'NM'}`;
   }
 
   // Level 5: Global All
@@ -623,7 +623,7 @@ async function fetchCardTraderPrice(card) {
 
 // Convert JSON cards back to the exact format of Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv
 function convertCardsToCsv(cards) {
-  const header = "N°;Nome Carta;Espansione;Codice Carta;Rarità;Edizione / Artwork;Lingua;Stato / Condizione;Cardmarket Min (€);Cardmarket Trend (€);CardTrader Min (€);CardTrader Trend (€);eBay Min (€);eBay Trend (€);Note";
+  const header = "NÂ°;Nome Carta;Espansione;Codice Carta;RaritÃ ;Edizione / Artwork;Lingua;Stato / Condizione;Cardmarket Min (â‚¬);Cardmarket Trend (â‚¬);CardTrader Min (â‚¬);CardTrader Trend (â‚¬);eBay Min (â‚¬);eBay Trend (â‚¬);Note";
   
   let totalCmMin = 0;
   let totalCmTrend = 0;
@@ -1059,7 +1059,7 @@ function formatCardCodeForLanguage(baseCode, language) {
   if (lang.includes('ita') || lang.includes('italiano')) targetLangTag = 'IT';
   else if (lang.includes('en') || lang.includes('ing') || lang.includes('english')) targetLangTag = 'EN';
   else if (lang.includes('de') || lang.includes('ted') || lang.includes('deutsch')) targetLangTag = 'DE';
-  else if (lang.includes('fr') || lang.includes('fra') || lang.includes('français')) targetLangTag = 'FR';
+  else if (lang.includes('fr') || lang.includes('fra') || lang.includes('franÃ§ais')) targetLangTag = 'FR';
   else if (lang.includes('es') || lang.includes('spa') || lang.includes('spagnolo')) targetLangTag = 'ES';
   else if (lang.includes('jp') || lang.includes('gia') || lang.includes('japanese')) targetLangTag = 'JP';
 
@@ -1138,11 +1138,12 @@ async function lookupCardTraderBlueprint(blueprintIdOrUrl, targetLanguage = 'Ita
   else if (gameId === 5) game = 'pokemon';
   else if (gameId === 15) game = 'onepiece';
   else if (gameId === 18) game = 'lorcana';
+  else if (gameId === 22) game = 'riftbound';
   else game = 'yugioh';
 
   // 2. Fetch Expansion Info for this game
   const expansions = await getExpansionsForGame(gameId);
-  const defaultExpName = (game === 'magic' ? 'Magic Set' : (game === 'pokemon' ? 'Pokémon Set' : (game === 'onepiece' ? 'One Piece Set' : 'Yu-Gi-Oh! Expansion')));
+  let defaultExpName = 'Yu-Gi-Oh! Expansion'; if (game === 'magic') defaultExpName = 'Magic Set'; else if (game === 'pokemon') defaultExpName = 'Pokémon Set'; else if (game === 'onepiece') defaultExpName = 'One Piece Set'; else if (game === 'lorcana') defaultExpName = 'Lorcana Set'; else if (game === 'riftbound') defaultExpName = 'Riftbound Set';
   const exp = expansions.find(e => e.id === bp.expansion_id) || { name: defaultExpName, code: 'TCG' };
 
   let finalCode = '';
@@ -1224,7 +1225,7 @@ async function lookupCardTraderBlueprint(blueprintIdOrUrl, targetLanguage = 'Ita
       finalCode = formatCardCodeForLanguage(`${(exp.code || 'TCG').toUpperCase()}-EN001`, targetLanguage);
     }
   } else if (game === 'pokemon') {
-    cardType = 'Pokémon Card';
+    cardType = 'PokÃ©mon Card';
     finalCode = `${(exp.code || 'PKM').toUpperCase()}-001`;
   } else if (game === 'onepiece') {
     cardType = 'One Piece Card';
@@ -1326,7 +1327,7 @@ async function lookupCardTraderBlueprint(blueprintIdOrUrl, targetLanguage = 'Ita
     ctFilterLevel: ctFilterLevel,
     trendStatus: (ctTrend > ctMin * 1.15 || cmTrend > cmMin * 1.15) ? 'up' : 'stable',
     trendPct: (ctTrend > ctMin && ctMin > 0) ? parseFloat(((ctTrend - ctMin) / ctMin * 10).toFixed(1)) : 0,
-    notes: `Blueprint CT: #${bp.id} · ${game.toUpperCase()}`
+    notes: `Blueprint CT: #${bp.id} Â· ${game.toUpperCase()}`
   };
 }
 
@@ -1374,7 +1375,7 @@ function fetchJustTcgPrice(card, apiKey) {
             const targetRarity = normalizeRarity(card.rarity);
             const targetExp = cleanStr(card.expansion);
 
-            // Hierarchical Scoring Matcher (Codice + Rarità + Espansione)
+            // Hierarchical Scoring Matcher (Codice + RaritÃ  + Espansione)
             let match = null;
             let bestScore = -1;
 
@@ -1394,14 +1395,14 @@ function fetchJustTcgPrice(card, apiKey) {
                 }
               }
 
-              // 2. Corrispondenza Rarità (Cruciale per Ghost, Ultimate, QCR, Secret)
+              // 2. Corrispondenza RaritÃ  (Cruciale per Ghost, Ultimate, QCR, Secret)
               if (targetRarity) {
                 if (itemRarity === targetRarity || itemName.includes(targetRarity) || (item.rarity && item.rarity.toLowerCase().includes(targetRarity))) {
                   score += 45;
                 } else if (targetRarity.includes(itemRarity) && itemRarity.length > 3) {
                   score += 25;
                 } else {
-                  // Forte penalità se la carta è Ghost/Ultimate/QCR/Secret e l'item è Common/Ultra/Super
+                  // Forte penalitÃ  se la carta Ã¨ Ghost/Ultimate/QCR/Secret e l'item Ã¨ Common/Ultra/Super
                   score -= 25;
                 }
               }
@@ -1419,7 +1420,7 @@ function fetchJustTcgPrice(card, apiKey) {
               }
             }
 
-            // Safety threshold: se il punteggio è troppo basso, non sovrascrivere
+            // Safety threshold: se il punteggio Ã¨ troppo basso, non sovrascrivere
             if (bestScore < 30) {
               match = null;
             }
@@ -1449,7 +1450,7 @@ function fetchJustTcgPrice(card, apiKey) {
               const trendEuro = avgUsd > 0 ? parseFloat((avgUsd * 0.92).toFixed(2)) : (priceEuro > 0 ? parseFloat((priceEuro * 1.15).toFixed(2)) : 0);
 
               const stats = getJustTcgUsageStats();
-              console.log(`[JustTCG Result] Trovata "${match.name}" (${match.number} - ${match.rarity}) -> Min €${priceEuro} | Trend €${trendEuro} [Chiamate usate: ${stats.count}/${stats.monthlyLimit}]`);
+              console.log(`[JustTCG Result] Trovata "${match.name}" (${match.number} - ${match.rarity}) -> Min â‚¬${priceEuro} | Trend â‚¬${trendEuro} [Chiamate usate: ${stats.count}/${stats.monthlyLimit}]`);
 
               resolve({
                 success: true,
@@ -1541,14 +1542,14 @@ async function fetchMultiMarketplaceCard(card, justTcgKey) {
         logItem.newCmMin = justRes.cmMin;
         updated.cmMin = justRes.cmMin;
         updated.baseCmMin = justRes.cmMin;
-        logItem.sources.push(`JustTCG Cardmarket Min €${justRes.cmMin}`);
+        logItem.sources.push(`JustTCG Cardmarket Min â‚¬${justRes.cmMin}`);
       }
       if (justRes.cmTrend > 0) {
         logItem.oldCmTrend = updated.cmTrend;
         logItem.newCmTrend = justRes.cmTrend;
         updated.cmTrend = justRes.cmTrend;
         updated.baseCmTrend = justRes.cmTrend;
-        logItem.sources.push(`JustTCG Cardmarket Trend €${justRes.cmTrend}`);
+        logItem.sources.push(`JustTCG Cardmarket Trend â‚¬${justRes.cmTrend}`);
       }
     } else if (justRes.reason) {
       logItem.sources.push(`JustTCG: ${justRes.reason}`);
@@ -1606,7 +1607,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: false,
-          error: "La protezione 2FA è già attiva su questo Vault. Solo l'amministratore autenticato può riconfigurarla."
+          error: "La protezione 2FA Ã¨ giÃ  attiva su questo Vault. Solo l'amministratore autenticato puÃ² riconfigurarla."
         }));
         return;
       }
@@ -1636,7 +1637,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: false,
-          error: "Operazione non consentita: la 2FA è già stata configurata. Impossibile sovrascrivere l'account senza autenticazione."
+          error: "Operazione non consentita: la 2FA Ã¨ giÃ  stata configurata. Impossibile sovrascrivere l'account senza autenticazione."
         }));
         return;
       }
@@ -1693,7 +1694,7 @@ const server = http.createServer(async (req, res) => {
         const days = rememberMe !== false ? 30 : 1;
 
         if (!authConfig.enabled || !authConfig.passwordHash || !authConfig.totpSecret) {
-          throw new Error("La protezione 2FA non è ancora stata configurata. Clicca in basso per impostare il tuo PIN e associare il QR Code con Authenticator.");
+          throw new Error("La protezione 2FA non Ã¨ ancora stata configurata. Clicca in basso per impostare il tuo PIN e associare il QR Code con Authenticator.");
         }
 
         // 1. Verifica PIN / Master Password con PBKDF2
@@ -2179,9 +2180,10 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log('====================================================');
-  console.log(`🚀 CardVault TCG Server attivo su: http://0.0.0.0:${PORT}`);
-  console.log(`📁 File CSV collegato: ${CSV_FILE_PATH}`);
-  console.log(`⚡ CardTrader API: Connessa (Token Attivo)`);
-  console.log(`🔐 Sicurezza 2FA: ${authConfig.enabled ? 'Attiva' : 'In attesa di configurazione iniziale'}`);
+  console.log(`ðŸš€ CardVault TCG Server attivo su: http://0.0.0.0:${PORT}`);
+  console.log(`ðŸ“ File CSV collegato: ${CSV_FILE_PATH}`);
+  console.log(`âš¡ CardTrader API: Connessa (Token Attivo)`);
+  console.log(`ðŸ” Sicurezza 2FA: ${authConfig.enabled ? 'Attiva' : 'In attesa di configurazione iniziale'}`);
   console.log('====================================================');
 });
+

@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CardVault TCG • Yu-Gi-Oh! Portfolio, Market Monitor & Wants</title>
+  <title>CardVault TCG Ã¢â‚¬Â¢ Yu-Gi-Oh! Portfolio, Market Monitor & Wants</title>
   <meta name="description" content="Dashboard avanzata per il monitoraggio del portafoglio e lista wants di Yu-Gi-Oh!, con refresh bilanciato prezzi e sincronizzazione con file CSV.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -54,7 +54,7 @@
           <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
           </svg>
-          <span id="btn-sync-ct-text">⚡ Sincronizza CardTrader (Live)</span>
+          <span id="btn-sync-ct-text">Ã¢Å¡Â¡ Sincronizza CardTrader (Live)</span>
         </button>
 
         <button type="button" class="btn btn-marketplaces-sync" id="btn-sync-marketplaces" title="Interroga JustTCG (Prezzi Cardmarket Min & Trend) e YGOPRODeck (Artwork HD & Prezzi Globali)">
@@ -63,12 +63,12 @@
             <line x1="2" y1="12" x2="22" y2="12"></line>
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10 15.3 15.3 0 0 1 4-10z"></path>
           </svg>
-          <span id="btn-sync-mp-text">🌐 Sincronizza Cardmarket & Mercati</span>
+          <span id="btn-sync-mp-text">Ã°Å¸Å’Â Sincronizza Cardmarket & Mercati</span>
         </button>
 
         <!-- JustTCG Monthly Quota Indicator (Appears when >= 500 calls used) -->
-        <div id="justtcg-quota-pill" class="justtcg-quota-pill" style="display: none;" title="Chiamate JustTCG rimanenti questo mese (Reset il 1° del mese)">
-          <span class="jqp-icon">🌐</span>
+        <div id="justtcg-quota-pill" class="justtcg-quota-pill" style="display: none;" title="Chiamate JustTCG rimanenti questo mese (Reset il 1Ã‚Â° del mese)">
+          <span class="jqp-icon">Ã°Å¸Å’Â</span>
           <span class="jqp-text">JustTCG: <strong id="jqp-remaining">1000</strong> rimaste</span>
           <span class="jqp-badge" id="jqp-badge">0 / 1000</span>
         </div>
@@ -78,7 +78,7 @@
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2-2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
-          <span>⚙️ API</span>
+          <span>Ã¢Å¡â„¢Ã¯Â¸Â API</span>
         </button>
 
         <button type="button" class="btn btn-secondary" id="btn-save-disk" title="Salva modifiche direttamente sul file CSV">
@@ -122,7 +122,7 @@
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
-          <span>🔒 Blocca</span>
+          <span>Ã°Å¸â€â€™ Blocca</span>
         </button>
       </div>
     </header>
@@ -160,29 +160,39 @@
     <div class="brand-filter-container">
       <div class="brand-filter-bar" id="brand-filter-bar" role="tablist" aria-label="Filtra per gioco/brand">
         <button type="button" class="brand-pill active" data-brand="all" id="brand-pill-all">
-          <span class="brand-pill-icon">🌐</span>
+          <span class="brand-pill-icon">Ã°Å¸Å’Â</span>
           <span class="brand-pill-title">Tutti i Giochi</span>
           <span class="brand-pill-count" id="brand-count-all">36</span>
         </button>
         <button type="button" class="brand-pill" data-brand="yugioh" id="brand-pill-yugioh">
-          <span class="brand-pill-icon">🎴</span>
+          <span class="brand-pill-icon">Ã°Å¸Å½Â´</span>
           <span class="brand-pill-title">Yu-Gi-Oh!</span>
           <span class="brand-pill-count" id="brand-count-yugioh">36</span>
         </button>
         <button type="button" class="brand-pill" data-brand="pokemon" id="brand-pill-pokemon">
-          <span class="brand-pill-icon">⚡</span>
-          <span class="brand-pill-title">Pokémon</span>
+          <span class="brand-pill-icon">Ã¢Å¡Â¡</span>
+          <span class="brand-pill-title">PokÃƒÂ©mon</span>
           <span class="brand-pill-count" id="brand-count-pokemon">0</span>
         </button>
         <button type="button" class="brand-pill" data-brand="magic" id="brand-pill-magic">
-          <span class="brand-pill-icon">🧙</span>
+          <span class="brand-pill-icon">Ã°Å¸Â§â„¢</span>
           <span class="brand-pill-title">Magic: The Gathering</span>
           <span class="brand-pill-count" id="brand-count-magic">0</span>
         </button>
         <button type="button" class="brand-pill" data-brand="onepiece" id="brand-pill-onepiece">
-          <span class="brand-pill-icon">🏴‍☠️</span>
+          <span class="brand-pill-icon">Ã°Å¸ Â´Ã¢â‚¬ Ã¢ËœÂ Ã¯Â¸ </span>
           <span class="brand-pill-title">One Piece</span>
           <span class="brand-pill-count" id="brand-count-onepiece">0</span>
+        </button>
+        <button type="button" class="brand-pill" data-brand="lorcana" id="brand-pill-lorcana">
+          <span class="brand-pill-icon">âœ¨</span>
+          <span class="brand-pill-title">Lorcana</span>
+          <span class="brand-pill-count" id="brand-count-lorcana">0</span>
+        </button>
+        <button type="button" class="brand-pill" data-brand="riftbound" id="brand-pill-riftbound">
+          <span class="brand-pill-icon">âš”ï¸</span>
+          <span class="brand-pill-title">Riftbound</span>
+          <span class="brand-pill-count" id="brand-count-riftbound">0</span>
         </button>
       </div>
     </div>
@@ -195,8 +205,8 @@
       <section class="kpi-grid" id="kpi-section" aria-label="Indicatori di performance del portafoglio">
         <div class="kpi-card highlight-card">
           <div class="kpi-label">Valore Stimato Portafoglio (Trend)</div>
-          <div class="kpi-value" id="kpi-total-trend">€ 0,00</div>
-          <div class="kpi-sub">Media Minima: <strong id="kpi-total-min">€ 0,00</strong></div>
+          <div class="kpi-value" id="kpi-total-trend">Ã¢â€šÂ¬ 0,00</div>
+          <div class="kpi-sub">Media Minima: <strong id="kpi-total-min">Ã¢â€šÂ¬ 0,00</strong></div>
         </div>
 
         <div class="kpi-card">
@@ -207,15 +217,15 @@
           <div class="kpi-market-breakdown">
             <div class="market-pill cm" title="Cardmarket Trend Totale">
               <span class="mp-name">Cardmarket</span>
-              <span class="mp-val" id="kpi-cm-total">€ 0,00</span>
+              <span class="mp-val" id="kpi-cm-total">Ã¢â€šÂ¬ 0,00</span>
             </div>
             <div class="market-pill ct" title="CardTrader Trend Totale">
               <span class="mp-name">CardTrader</span>
-              <span class="mp-val" id="kpi-ct-total">€ 0,00</span>
+              <span class="mp-val" id="kpi-ct-total">Ã¢â€šÂ¬ 0,00</span>
             </div>
             <div class="market-pill eb" title="eBay Trend Totale">
               <span class="mp-name">eBay</span>
-              <span class="mp-val" id="kpi-eb-total">€ 0,00</span>
+              <span class="mp-val" id="kpi-eb-total">Ã¢â€šÂ¬ 0,00</span>
             </div>
           </div>
         </div>
@@ -229,17 +239,17 @@
             <div class="trend-stat-row">
               <div class="trend-stat green">
                 <span class="trend-dot green"></span>
-                <span class="ts-label">In Rialzo ↗</span>
+                <span class="ts-label">In Rialzo Ã¢â€ â€”</span>
                 <strong id="kpi-trend-up">0</strong>
               </div>
               <div class="trend-stat neutral">
                 <span class="trend-dot neutral"></span>
-                <span class="ts-label">Stabili ↔</span>
+                <span class="ts-label">Stabili Ã¢â€ â€</span>
                 <strong id="kpi-trend-stable">0</strong>
               </div>
               <div class="trend-stat red">
                 <span class="trend-dot red"></span>
-                <span class="ts-label">In Calo ↘</span>
+                <span class="ts-label">In Calo Ã¢â€ Ëœ</span>
                 <strong id="kpi-trend-down">0</strong>
               </div>
             </div>
@@ -255,7 +265,7 @@
           <div class="kpi-label">Top Value Grail</div>
           <div class="grail-title" id="kpi-top-card-name">-</div>
           <div class="grail-meta" id="kpi-top-card-meta">-</div>
-          <div class="grail-price" id="kpi-top-card-val">€ 0,00</div>
+          <div class="grail-price" id="kpi-top-card-val">Ã¢â€šÂ¬ 0,00</div>
         </div>
       </section>
 
@@ -265,21 +275,21 @@
       <section class="allocation-chart-card" id="allocation-chart-section">
         <div class="chart-card-header">
           <div class="chart-header-title-wrap">
-            <span class="chart-header-icon">🥧</span>
+            <span class="chart-header-icon">Ã°Å¸Â¥Â§</span>
             <div>
               <h3 class="chart-card-title">Ripartizione del Valore & Allocazione Portafoglio</h3>
-              <p class="chart-card-subtitle">Impatto percentuale di ogni carta sul totale • Disattiva o attiva le carte per simulare i conteggi</p>
+              <p class="chart-card-subtitle">Impatto percentuale di ogni carta sul totale Ã¢â‚¬Â¢ Disattiva o attiva le carte per simulare i conteggi</p>
             </div>
           </div>
           <div class="chart-header-controls">
             <button type="button" class="btn btn-sm btn-chart-action" id="btn-chart-include-all" title="Includi tutte le carte nel calcolo totale">
-              <span>✅ Includi Tutte</span>
+              <span>Ã¢Å“â€¦ Includi Tutte</span>
             </button>
             <button type="button" class="btn btn-sm btn-chart-action" id="btn-chart-exclude-all" title="Escludi tutte le carte dal calcolo totale">
-              <span>❌ Escludi Tutte</span>
+              <span>Ã¢ÂÅ’ Escludi Tutte</span>
             </button>
             <button type="button" class="btn btn-sm btn-chart-collapse" id="btn-toggle-chart" aria-expanded="true" title="Comprimi o espandi grafico">
-              <span id="chart-toggle-label">Nascondi Grafico ▴</span>
+              <span id="chart-toggle-label">Nascondi Grafico Ã¢â€“Â´</span>
             </button>
           </div>
         </div>
@@ -293,7 +303,7 @@
               </svg>
               <div class="donut-center-badge" id="donut-center-badge">
                 <span class="dcb-label">Valore Incluso</span>
-                <strong class="dcb-value" id="donut-center-val">€ 0,00</strong>
+                <strong class="dcb-value" id="donut-center-val">Ã¢â€šÂ¬ 0,00</strong>
                 <span class="dcb-sub" id="donut-center-count">0 Carte</span>
               </div>
             </div>
@@ -320,15 +330,15 @@
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="search-input" placeholder="Cerca per nome carta, codice (es. SOI-IT001), espansione o rarità..." autocomplete="off">
+          <input type="text" id="search-input" placeholder="Cerca per nome carta, codice (es. SOI-IT001), espansione o raritÃƒÂ ..." autocomplete="off">
           <button type="button" id="search-clear-btn" class="clear-btn" title="Cancella ricerca" style="display:none;">&times;</button>
         </div>
 
         <div class="filters-row">
           <div class="filter-group">
-            <label for="filter-rarity">Rarità:</label>
+            <label for="filter-rarity">RaritÃƒÂ :</label>
             <select id="filter-rarity" class="filter-select">
-              <option value="all">Tutte le Rarità</option>
+              <option value="all">Tutte le RaritÃƒÂ </option>
             </select>
           </div>
 
@@ -350,21 +360,21 @@
             <label for="filter-trend">Trend Mercato:</label>
             <select id="filter-trend" class="filter-select">
               <option value="all">Tutti i Trend</option>
-              <option value="up">↗ In Rialzo / Bullish</option>
-              <option value="stable">↔ Stabile / Neutral</option>
-              <option value="down">↘ In Calo / Bearish</option>
+              <option value="up">Ã¢â€ â€” In Rialzo / Bullish</option>
+              <option value="stable">Ã¢â€ â€ Stabile / Neutral</option>
+              <option value="down">Ã¢â€ Ëœ In Calo / Bearish</option>
             </select>
           </div>
 
           <div class="filter-group">
             <label for="sort-by">Ordina per:</label>
             <select id="sort-by" class="filter-select">
-              <option value="num-asc">N° File (Predefinito)</option>
-              <option value="updated-desc">🕒 Ultima Modifica (Più recenti)</option>
-              <option value="updated-asc">🕒 Ultima Modifica (Meno recenti)</option>
-              <option value="price-desc">Prezzo Trend (Più Alto)</option>
-              <option value="price-asc">Prezzo Trend (Più Basso)</option>
-              <option value="min-desc">Prezzo Minimo (Più Alto)</option>
+              <option value="num-asc">NÃ‚Â° File (Predefinito)</option>
+              <option value="updated-desc">Ã°Å¸â€¢â€™ Ultima Modifica (PiÃƒÂ¹ recenti)</option>
+              <option value="updated-asc">Ã°Å¸â€¢â€™ Ultima Modifica (Meno recenti)</option>
+              <option value="price-desc">Prezzo Trend (PiÃƒÂ¹ Alto)</option>
+              <option value="price-asc">Prezzo Trend (PiÃƒÂ¹ Basso)</option>
+              <option value="min-desc">Prezzo Minimo (PiÃƒÂ¹ Alto)</option>
               <option value="name-asc">Nome Carta (A - Z)</option>
               <option value="trend-up">Trend (In rialzo prima)</option>
               <option value="trend-down">Trend (In calo prima)</option>
@@ -402,7 +412,7 @@
                 </th>
                 <th class="col-num">#</th>
                 <th class="col-card">Carta & Dettagli</th>
-                <th class="col-rarity">Rarità & Set</th>
+                <th class="col-rarity">RaritÃƒÂ  & Set</th>
                 <th class="col-cond">Cond. / Lingua</th>
                 <th class="col-market">Cardmarket</th>
                 <th class="col-market">CardTrader</th>
@@ -444,8 +454,8 @@
       <section class="kpi-grid" id="kpi-wants-section" aria-label="Indicatori della Wishlist Wants">
         <div class="kpi-card highlight-card">
           <div class="kpi-label">Budget Desiderato Totale (Target)</div>
-          <div class="kpi-value" id="kpi-wants-target-total">€ 0,00</div>
-          <div class="kpi-sub">Miglior Prezzo di Mercato: <strong id="kpi-wants-best-total">€ 0,00</strong></div>
+          <div class="kpi-value" id="kpi-wants-target-total">Ã¢â€šÂ¬ 0,00</div>
+          <div class="kpi-sub">Miglior Prezzo di Mercato: <strong id="kpi-wants-best-total">Ã¢â€šÂ¬ 0,00</strong></div>
         </div>
 
         <div class="kpi-card">
@@ -455,24 +465,24 @@
           </div>
           <div class="wants-diff-metric">
             <span class="wdm-label">Delta Spesa Totale:</span>
-            <span class="wdm-value" id="kpi-wants-delta">€ 0,00</span>
+            <span class="wdm-value" id="kpi-wants-delta">Ã¢â€šÂ¬ 0,00</span>
           </div>
           <div class="wants-diff-sub" id="kpi-wants-delta-sub">Differenza rispetto al tuo budget prefissato</div>
         </div>
 
         <div class="kpi-card">
           <div class="kpi-header-row">
-            <span class="kpi-label">Alert Opportunità di Acquisto</span>
+            <span class="kpi-label">Alert OpportunitÃƒÂ  di Acquisto</span>
             <span class="kpi-tag">Deal Radar</span>
           </div>
           <div class="wants-deals-row">
             <div class="deal-pill green" title="Carte attualmente al di sotto del prezzo target">
               <span class="dp-count" id="kpi-wants-deals-count">0</span>
-              <span class="dp-label">Sotto Target ✅ (Affari)</span>
+              <span class="dp-label">Sotto Target Ã¢Å“â€¦ (Affari)</span>
             </div>
             <div class="deal-pill amber" title="Carte con prezzo sopra il target desiderato">
               <span class="dp-count" id="kpi-wants-over-count">0</span>
-              <span class="dp-label">Sopra Budget ⚠️</span>
+              <span class="dp-label">Sopra Budget Ã¢Å¡Â Ã¯Â¸Â</span>
             </div>
           </div>
         </div>
@@ -481,7 +491,7 @@
           <div class="kpi-label">Top Want Prioritario</div>
           <div class="grail-title" id="kpi-top-want-name">-</div>
           <div class="grail-meta" id="kpi-top-want-meta">-</div>
-          <div class="grail-price" id="kpi-top-want-val">€ 0,00</div>
+          <div class="grail-price" id="kpi-top-want-val">Ã¢â€šÂ¬ 0,00</div>
         </div>
       </section>
 
@@ -492,7 +502,7 @@
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <input type="text" id="search-wants-input" placeholder="Cerca nella lista Wants per nome, codice o rarità..." autocomplete="off">
+          <input type="text" id="search-wants-input" placeholder="Cerca nella lista Wants per nome, codice o raritÃƒÂ ..." autocomplete="off">
           <button type="button" id="search-wants-clear-btn" class="clear-btn" title="Cancella ricerca" style="display:none;">&times;</button>
         </div>
 
@@ -501,27 +511,27 @@
             <label for="filter-wants-status">Stato Prezzo:</label>
             <select id="filter-wants-status" class="filter-select">
               <option value="all">Tutte le Carte Wants</option>
-              <option value="deal">✅ Sotto Target / Affare Trovato</option>
-              <option value="over">⚠️ Sopra Target Desiderato</option>
+              <option value="deal">Ã¢Å“â€¦ Sotto Target / Affare Trovato</option>
+              <option value="over">Ã¢Å¡Â Ã¯Â¸Â Sopra Target Desiderato</option>
             </select>
           </div>
 
           <div class="filter-group">
-            <label for="filter-wants-rarity">Rarità:</label>
+            <label for="filter-wants-rarity">RaritÃƒÂ :</label>
             <select id="filter-wants-rarity" class="filter-select">
-              <option value="all">Tutte le Rarità</option>
+              <option value="all">Tutte le RaritÃƒÂ </option>
             </select>
           </div>
 
           <div class="filter-group">
             <label for="sort-wants-by">Ordina per:</label>
             <select id="sort-wants-by" class="filter-select">
-              <option value="target-desc">Prezzo Target (Più Alto)</option>
-              <option value="target-asc">Prezzo Target (Più Basso)</option>
-              <option value="updated-desc">🕒 Ultima Modifica (Più recenti)</option>
-              <option value="updated-asc">🕒 Ultima Modifica (Meno recenti)</option>
-              <option value="best-price-asc">Miglior Prezzo Mercato (Più Economico)</option>
-              <option value="deal-saving">Maggior Risparmio (€ Sotto Target)</option>
+              <option value="target-desc">Prezzo Target (PiÃƒÂ¹ Alto)</option>
+              <option value="target-asc">Prezzo Target (PiÃƒÂ¹ Basso)</option>
+              <option value="updated-desc">Ã°Å¸â€¢â€™ Ultima Modifica (PiÃƒÂ¹ recenti)</option>
+              <option value="updated-asc">Ã°Å¸â€¢â€™ Ultima Modifica (Meno recenti)</option>
+              <option value="best-price-asc">Miglior Prezzo Mercato (PiÃƒÂ¹ Economico)</option>
+              <option value="deal-saving">Maggior Risparmio (Ã¢â€šÂ¬ Sotto Target)</option>
               <option value="name-asc">Nome Carta (A - Z)</option>
             </select>
           </div>
@@ -554,7 +564,7 @@
               <tr>
                 <th class="col-num">#</th>
                 <th class="col-card">Carta Desiderata</th>
-                <th class="col-rarity">Rarità & Set</th>
+                <th class="col-rarity">RaritÃƒÂ  & Set</th>
                 <th class="col-cond">Condizione Cercata</th>
                 <th class="col-target">Prezzo Target</th>
                 <th class="col-market">Cardmarket</th>
@@ -593,7 +603,7 @@
     <!-- Footer -->
     <footer class="app-footer">
       <div class="footer-left">
-        <span>CardVault TCG • Sincronizzato con <code>Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv</code></span>
+        <span>CardVault TCG Ã¢â‚¬Â¢ Sincronizzato con <code>Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv</code></span>
       </div>
       <div class="footer-right">
         <button type="button" class="footer-link-btn" id="btn-reset-baseline" style="margin-right: 14px;">Ripristina Valori Base</button>
@@ -634,7 +644,7 @@
         <!-- CardTrader 1-Click Auto-Fill Box -->
         <div class="autofill-box" id="card-autofill-box">
           <div class="autofill-header">
-            <span class="autofill-icon">⚡</span>
+            <span class="autofill-icon">Ã¢Å¡Â¡</span>
             <div>
               <strong>Compilazione Automatica 1-Click con CardTrader & YGOPRODeck</strong>
               <p class="autofill-sub">Incolla il link CardTrader o l'ID Blueprint per compilare automaticamente metadati, artwork HD e prezzi live di tutti i mercati!</p>
@@ -643,7 +653,7 @@
           <div class="autofill-input-row">
             <input type="text" id="form-autofill-url" class="autofill-input" placeholder="Incolla link CardTrader (es. https://www.cardtrader.com/it/cards/80186...) o ID Blueprint">
             <button type="button" class="btn btn-ct-sync" id="btn-autofill-fetch" style="white-space: nowrap;">
-              <span id="autofill-btn-text">⚡ Compila Dati</span>
+              <span id="autofill-btn-text">Ã¢Å¡Â¡ Compila Dati</span>
             </button>
           </div>
           <div id="autofill-status-msg" class="autofill-status-msg" style="display: none;"></div>
@@ -658,11 +668,12 @@
               <div class="form-group flex-1">
                 <label for="form-game">Gioco / Brand *</label>
                 <select id="form-game" required>
-                  <option value="yugioh" selected>🎴 Yu-Gi-Oh!</option>
-                  <option value="pokemon">⚡ Pokémon</option>
-                  <option value="magic">🧙 Magic: The Gathering</option>
-                  <option value="onepiece">🏴‍☠️ One Piece</option>
-                  <option value="lorcana">✨ Disney Lorcana</option>
+                  <option value="yugioh" selected>Ã°Å¸Å½Â´ Yu-Gi-Oh!</option>
+                  <option value="pokemon">Ã¢Å¡Â¡ PokÃƒÂ©mon</option>
+                  <option value="magic">Ã°Å¸Â§â„¢ Magic: The Gathering</option>
+                  <option value="onepiece">Ã°Å¸ÂÂ´Ã¢â‚¬ÂÃ¢ËœÂ Ã¯Â¸Â One Piece</option>
+                  <option value="lorcana">Ã¢Å“Â¨ Disney Lorcana</option>
+                  <option value="riftbound">⚔️ Riftbound</option>
                 </select>
               </div>
               <div class="form-group flex-2">
@@ -689,7 +700,7 @@
 
             <div class="form-row">
               <div class="form-group flex-1">
-                <label for="form-rarity">Rarità *</label>
+                <label for="form-rarity">RaritÃƒÂ  *</label>
                 <input type="text" id="form-rarity" list="rarity-datalist" required placeholder="es. Ultimate Rare">
                 <datalist id="rarity-datalist">
                   <option value="Quarter Century Secret Rare">
@@ -708,7 +719,7 @@
               </div>
               <div class="form-group flex-1">
                 <label for="form-edition">Edizione / Artwork</label>
-                <input type="text" id="form-edition" placeholder="es. 1ª Edizione / Alternate Art">
+                <input type="text" id="form-edition" placeholder="es. 1Ã‚Âª Edizione / Alternate Art">
               </div>
             </div>
 
@@ -752,11 +763,11 @@
               <span class="mfb-tag cm-badge">Cardmarket</span>
               <div class="form-row">
                 <div class="form-group flex-1">
-                  <label for="form-cm-min">Minimo (€)</label>
+                  <label for="form-cm-min">Minimo (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="form-cm-min" placeholder="0.00">
                 </div>
                 <div class="form-group flex-1">
-                  <label for="form-cm-trend">Trend (€)</label>
+                  <label for="form-cm-trend">Trend (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="form-cm-trend" placeholder="0.00">
                 </div>
               </div>
@@ -767,11 +778,11 @@
               <span class="mfb-tag ct-badge">CardTrader</span>
               <div class="form-row">
                 <div class="form-group flex-1">
-                  <label for="form-ct-min">Minimo (€)</label>
+                  <label for="form-ct-min">Minimo (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="form-ct-min" placeholder="0.00">
                 </div>
                 <div class="form-group flex-1">
-                  <label for="form-ct-trend">Trend (€)</label>
+                  <label for="form-ct-trend">Trend (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="form-ct-trend" placeholder="0.00">
                 </div>
               </div>
@@ -782,11 +793,11 @@
               <span class="mfb-tag eb-badge">eBay Monitor</span>
               <div class="form-row">
                 <div class="form-group flex-1">
-                  <label for="form-eb-min">Prezzo Base / Min (€)</label>
+                  <label for="form-eb-min">Prezzo Base / Min (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="form-eb-min" placeholder="0.00">
                 </div>
                 <div class="form-group flex-1">
-                  <label for="form-eb-trend">Venduto Recente / Trend (€)</label>
+                  <label for="form-eb-trend">Venduto Recente / Trend (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="form-eb-trend" placeholder="0.00">
                 </div>
               </div>
@@ -797,9 +808,9 @@
               <div class="form-group flex-1">
                 <label for="form-trend-status">Stato Trend *</label>
                 <select id="form-trend-status">
-                  <option value="up">↗ In Crescita / Rialzo (Bullish)</option>
-                  <option value="stable" selected>↔ Stabile / Consolidamento</option>
-                  <option value="down">↘ In Calo / Ribasso (Bearish)</option>
+                  <option value="up">Ã¢â€ â€” In Crescita / Rialzo (Bullish)</option>
+                  <option value="stable" selected>Ã¢â€ â€ Stabile / Consolidamento</option>
+                  <option value="down">Ã¢â€ Ëœ In Calo / Ribasso (Bearish)</option>
                 </select>
               </div>
               <div class="form-group flex-1">
@@ -847,7 +858,7 @@
         <!-- CardTrader 1-Click Auto-Fill Box (Wants) -->
         <div class="autofill-box" id="want-autofill-box">
           <div class="autofill-header">
-            <span class="autofill-icon">⚡</span>
+            <span class="autofill-icon">Ã¢Å¡Â¡</span>
             <div>
               <strong>Compilazione Automatica 1-Click con CardTrader & YGOPRODeck</strong>
               <p class="autofill-sub">Incolla il link CardTrader o l'ID Blueprint per importare istantaneamente il want con artwork HD e quotazioni minime!</p>
@@ -856,7 +867,7 @@
           <div class="autofill-input-row">
             <input type="text" id="want-form-autofill-url" class="autofill-input" placeholder="Incolla link CardTrader (es. https://www.cardtrader.com/it/cards/80186...) o ID Blueprint">
             <button type="button" class="btn btn-ct-sync" id="want-btn-autofill-fetch" style="white-space: nowrap;">
-              <span id="want-autofill-btn-text">⚡ Compila Dati</span>
+              <span id="want-autofill-btn-text">Ã¢Å¡Â¡ Compila Dati</span>
             </button>
           </div>
           <div id="want-autofill-status-msg" class="autofill-status-msg" style="display: none;"></div>
@@ -871,11 +882,12 @@
               <div class="form-group flex-1">
                 <label for="want-form-game">Gioco / Brand *</label>
                 <select id="want-form-game" required>
-                  <option value="yugioh" selected>🎴 Yu-Gi-Oh!</option>
-                  <option value="pokemon">⚡ Pokémon</option>
-                  <option value="magic">🧙 Magic: The Gathering</option>
-                  <option value="onepiece">🏴‍☠️ One Piece</option>
-                  <option value="lorcana">✨ Disney Lorcana</option>
+                  <option value="yugioh" selected>Ã°Å¸Å½Â´ Yu-Gi-Oh!</option>
+                  <option value="pokemon">Ã¢Å¡Â¡ PokÃƒÂ©mon</option>
+                  <option value="magic">Ã°Å¸Â§â„¢ Magic: The Gathering</option>
+                  <option value="onepiece">Ã°Å¸ÂÂ´Ã¢â‚¬ÂÃ¢ËœÂ Ã¯Â¸Â One Piece</option>
+                  <option value="lorcana">Ã¢Å“Â¨ Disney Lorcana</option>
+                  <option value="riftbound">⚔️ Riftbound</option>
                 </select>
               </div>
               <div class="form-group flex-2">
@@ -902,12 +914,12 @@
 
             <div class="form-row">
               <div class="form-group flex-1">
-                <label for="want-form-rarity">Rarità *</label>
+                <label for="want-form-rarity">RaritÃƒÂ  *</label>
                 <input type="text" id="want-form-rarity" list="rarity-datalist" required placeholder="es. Ultra Rare">
               </div>
               <div class="form-group flex-1">
                 <label for="want-form-edition">Edizione Desiderata</label>
-                <input type="text" id="want-form-edition" placeholder="es. 1ª Edizione">
+                <input type="text" id="want-form-edition" placeholder="es. 1Ã‚Âª Edizione">
               </div>
             </div>
 
@@ -935,14 +947,14 @@
             </div>
 
             <div class="form-group target-budget-highlight">
-              <label for="want-form-target-price">🎯 Prezzo Target / Budget Massimo (€) *</label>
+              <label for="want-form-target-price">Ã°Å¸Å½Â¯ Prezzo Target / Budget Massimo (Ã¢â€šÂ¬) *</label>
               <input type="number" step="0.01" min="0" id="want-form-target-price" required placeholder="es. 350.00">
               <small class="form-help">Ti avviseremo quando una quotazione sui mercati scende sotto questo valore!</small>
             </div>
 
             <div class="form-group">
               <label for="want-form-notes">Note d'Acquisto</label>
-              <input type="text" id="want-form-notes" placeholder="es. Priorità alta per deck competitivo, cerca copia gradata...">
+              <input type="text" id="want-form-notes" placeholder="es. PrioritÃƒÂ  alta per deck competitivo, cerca copia gradata...">
             </div>
           </div>
 
@@ -955,11 +967,11 @@
               <span class="mfb-tag cm-badge">Cardmarket</span>
               <div class="form-row">
                 <div class="form-group flex-1">
-                  <label for="want-form-cm-min">Miglior Offerta (€)</label>
+                  <label for="want-form-cm-min">Miglior Offerta (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="want-form-cm-min" placeholder="0.00">
                 </div>
                 <div class="form-group flex-1">
-                  <label for="want-form-cm-trend">Trend (€)</label>
+                  <label for="want-form-cm-trend">Trend (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="want-form-cm-trend" placeholder="0.00">
                 </div>
               </div>
@@ -970,11 +982,11 @@
               <span class="mfb-tag ct-badge">CardTrader</span>
               <div class="form-row">
                 <div class="form-group flex-1">
-                  <label for="want-form-ct-min">Miglior Offerta (€)</label>
+                  <label for="want-form-ct-min">Miglior Offerta (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="want-form-ct-min" placeholder="0.00">
                 </div>
                 <div class="form-group flex-1">
-                  <label for="want-form-ct-trend">Trend (€)</label>
+                  <label for="want-form-ct-trend">Trend (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="want-form-ct-trend" placeholder="0.00">
                 </div>
               </div>
@@ -985,11 +997,11 @@
               <span class="mfb-tag eb-badge">eBay Monitor</span>
               <div class="form-row">
                 <div class="form-group flex-1">
-                  <label for="want-form-eb-min">Compralo Subito Min (€)</label>
+                  <label for="want-form-eb-min">Compralo Subito Min (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="want-form-eb-min" placeholder="0.00">
                 </div>
                 <div class="form-group flex-1">
-                  <label for="want-form-eb-trend">Venduto Recente (€)</label>
+                  <label for="want-form-eb-trend">Venduto Recente (Ã¢â€šÂ¬)</label>
                   <input type="number" step="0.01" min="0" id="want-form-eb-trend" placeholder="0.00">
                 </div>
               </div>
@@ -1010,7 +1022,7 @@
     <div class="modal-card" style="max-width: 700px;">
       <div class="modal-header">
         <h2 style="display: flex; align-items: center; gap: 8px;">
-          <span style="color: #0ea5e9;">🌐</span> Sincronizzazione Mercati Globali & Immagini HD
+          <span style="color: #0ea5e9;">Ã°Å¸Å’Â</span> Sincronizzazione Mercati Globali & Immagini HD
         </h2>
         <button type="button" class="modal-close-btn" id="btn-close-mp-modal" aria-label="Chiudi modale">&times;</button>
       </div>
@@ -1046,7 +1058,7 @@
     <div class="modal-card" style="max-width: 580px;">
       <div class="modal-header">
         <h2 style="display: flex; align-items: center; gap: 8px;">
-          <span>⚙️</span> Configurazione Provider & Token API
+          <span>Ã¢Å¡â„¢Ã¯Â¸Â</span> Configurazione Provider & Token API
         </h2>
         <button type="button" class="modal-close-btn" id="btn-close-api-modal" aria-label="Chiudi modale">&times;</button>
       </div>
@@ -1054,7 +1066,7 @@
       <div style="padding: 1.5rem;">
         <div class="api-provider-card">
           <div class="apc-header">
-            <strong>🃏 YGOPRODeck API</strong>
+            <strong>Ã°Å¸Æ’Â YGOPRODeck API</strong>
             <span class="badge-status-ok">Attivo (100% Gratuito)</span>
           </div>
           <p class="apc-desc">Fornisce artwork originali in HD, tipo mostro, testo carte e prezzi base globali. Non richiede chiavi API.</p>
@@ -1062,7 +1074,7 @@
 
         <div class="api-provider-card" style="margin-top: 1rem;">
           <div class="apc-header">
-            <strong>⚡ CardTrader API v2</strong>
+            <strong>Ã¢Å¡Â¡ CardTrader API v2</strong>
             <span class="badge-status-ok" id="status-cardtrader-badge">Connesso</span>
           </div>
           <p class="apc-desc">Autenticazione ufficiale per prezzi minimi reali, trend e listings in Europa.</p>
@@ -1074,10 +1086,10 @@
 
         <div class="api-provider-card" style="margin-top: 1rem;">
           <div class="apc-header">
-            <strong>🌐 JustTCG API (Cardmarket & TCGplayer)</strong>
+            <strong>Ã°Å¸Å’Â JustTCG API (Cardmarket & TCGplayer)</strong>
             <span class="badge-status-opt" id="status-justtcg-badge">Configurato</span>
           </div>
-          <p class="apc-desc">Aggregatore per consultare i prezzi Cardmarket per set/rarità senza blocchi Cloudflare (1.000 req/mese gratis su justtcg.com).</p>
+          <p class="apc-desc">Aggregatore per consultare i prezzi Cardmarket per set/raritÃƒÂ  senza blocchi Cloudflare (1.000 req/mese gratis su justtcg.com).</p>
           <div class="form-group" style="margin-top: 0.5rem;">
             <label for="input-justtcg-key">API Key JustTCG</label>
             <input type="password" id="input-justtcg-key" placeholder="Incolla API Key JustTCG..." class="form-input">
@@ -1086,7 +1098,7 @@
           <!-- JustTCG Monthly Quota Monitor Box -->
           <div id="justtcg-quota-box" class="justtcg-quota-box" style="margin-top: 0.85rem; padding: 12px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 0.82rem; color: var(--text-secondary);">📊 Utilizzo Mensile Gratuito:</span>
+              <span style="font-size: 0.82rem; color: var(--text-secondary);">Ã°Å¸â€œÅ  Utilizzo Mensile Gratuito:</span>
               <strong id="justtcg-quota-count-text" style="font-size: 0.86rem; color: #38bdf8;">0 / 1000 usate</strong>
             </div>
             <div class="justtcg-progress-bg" style="width: 100%; height: 8px; background: #0f172a; border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.06);">
@@ -1097,7 +1109,7 @@
               <span id="justtcg-quota-reset-text">Prossimo azzeramento: 1 del mese</span>
             </div>
             <div id="justtcg-quota-warning-banner" style="display: none; margin-top: 8px; padding: 6px 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 4px; font-size: 0.75rem; color: #fbbf24;">
-              ⚠️ Superata la soglia di 500 chiamate. Monitoraggio rimanenze attivo.
+              Ã¢Å¡Â Ã¯Â¸Â Superata la soglia di 500 chiamate. Monitoraggio rimanenze attivo.
             </div>
           </div>
         </div>
@@ -1123,7 +1135,7 @@
             <h2 id="lightbox-name">Nome Carta</h2>
             <button type="button" class="modal-close-btn" id="btn-close-lightbox" aria-label="Chiudi">&times;</button>
           </div>
-          <div id="lightbox-sub" class="lightbox-meta">RA04-IT038 • Quarter Century Stampede</div>
+          <div id="lightbox-sub" class="lightbox-meta">RA04-IT038 Ã¢â‚¬Â¢ Quarter Century Stampede</div>
           <div id="lightbox-tags" class="lightbox-tags"></div>
           <div id="lightbox-timestamp" class="lightbox-timestamp-badge"></div>
           
@@ -1152,7 +1164,7 @@
     <div class="modal-card" style="max-width: 680px;">
       <div class="modal-header">
         <h2 style="display: flex; align-items: center; gap: 8px;">
-          <span style="color: #ea580c;">⚡</span> Sincronizzazione Ufficiale CardTrader API
+          <span style="color: #ea580c;">Ã¢Å¡Â¡</span> Sincronizzazione Ufficiale CardTrader API
         </h2>
         <button type="button" class="modal-close-btn" id="btn-close-ct-modal" aria-label="Chiudi modale">&times;</button>
       </div>
@@ -1202,7 +1214,7 @@
           <label for="auth-input-password">Master PIN / Password</label>
           <div class="auth-input-wrap">
             <input type="password" id="auth-input-password" placeholder="Inserisci il tuo PIN o password" required autocomplete="current-password">
-            <button type="button" class="auth-toggle-pwd" id="btn-toggle-pwd" aria-label="Mostra/Nascondi password">👁️</button>
+            <button type="button" class="auth-toggle-pwd" id="btn-toggle-pwd" aria-label="Mostra/Nascondi password">Ã°Å¸â€˜ÂÃ¯Â¸Â</button>
           </div>
         </div>
 
@@ -1222,12 +1234,12 @@
         <div id="auth-error-msg" class="auth-error-alert" style="display: none;"></div>
 
         <button type="submit" class="btn btn-primary btn-auth-submit" id="btn-submit-login">
-          <span>🔒 Sblocca CardVault</span>
+          <span>Ã°Å¸â€â€™ Sblocca CardVault</span>
         </button>
 
         <div style="text-align: center; margin-top: 0.75rem;">
           <button type="button" id="btn-switch-to-setup" class="auth-switch-link">
-            ⚙️ Prima volta o vuoi riconfigurare l'Authenticator? Clicca qui
+            Ã¢Å¡â„¢Ã¯Â¸Â Prima volta o vuoi riconfigurare l'Authenticator? Clicca qui
           </button>
         </div>
       </form>
@@ -1277,7 +1289,7 @@
 
         <div style="text-align: center; margin-top: 0.75rem;">
           <button type="button" id="btn-switch-to-login" class="auth-switch-link">
-            🔑 Hai già associato l'app Authenticator? Torna al Login
+            Ã°Å¸â€â€˜ Hai giÃƒÂ  associato l'app Authenticator? Torna al Login
           </button>
         </div>
       </form>
@@ -1288,3 +1300,4 @@
   <script src="app.js?v=2.5"></script>
 </body>
 </html>
+
