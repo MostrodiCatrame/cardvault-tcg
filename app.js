@@ -519,7 +519,11 @@
 
   function getAuthHeaders(extraHeaders = {}) {
     const token = getAuthToken();
-    const headers = { "Content-Type": "application/json", ...extraHeaders };
+    const headers = { 
+      "Content-Type": "application/json", 
+      "Bypass-Tunnel-Reminder": "true",
+      ...extraHeaders 
+    };
     if (token) {
       headers["Authorization"] = "Bearer " + token;
     }

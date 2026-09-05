@@ -10,11 +10,14 @@ Benvenuto nella documentazione ufficiale di **CardVault TCG**, l'applicazione we
 3. [Integrazione CardTrader API v2 & Blueprints Certificati](#3-integrazione-cardtrader-api-v2--blueprints-certificati)
 4. [Integrazione YGOPRODeck API (Artwork HD & Metadati)](#4-integrazione-ygoprodeck-api-artwork-hd--metadati)
 5. [Integrazione Multi-Marketplace (Cardmarket, JustTCG, eBay)](#5-integrazione-multi-marketplace-cardmarket-justtcg-ebay)
-6. [Sistema di Sicurezza 2FA (Two-Factor Authentication)](#6-sistema-di-sicurezza-2fa-two-factor-authentication)
-7. [Sincronizzazione File CSV su Disco](#7-sincronizzazione-file-csv-su-disco)
-8. [Guida all'Uso Quotidiano (Locale e Cloud)](#8-guida-alluso-quotidiano-locale-e-cloud)
-9. [Struttura dei File di Progetto](#9-struttura-dei-file-di-progetto)
-10. [⚠️ ROADMAP & DA FARE: Revisione Logica Inserimento Nuove Carte](#10-️-roadmap--da-fare-revisione-logica-inserimento-nuove-carte)
+6. [Sistema di Timestamp & Smart Merge (Persistenza Sicura)](#6-sistema-di-timestamp--smart-merge-persistenza-sicura)
+7. [Sistema di Sicurezza 2FA (Two-Factor Authentication Permanente)](#7-sistema-di-sicurezza-2fa-two-factor-authentication)
+8. [Sincronizzazione File CSV su Disco](#8-sincronizzazione-file-csv-su-disco)
+9. [Guida all'Uso Quotidiano (Locale e Cloud)](#9-guida-alluso-quotidiano-locale-e-cloud)
+10. [Struttura dei File di Progetto](#10-struttura-dei-file-di-progetto)
+11. [1-Click Auto-Fill & Reindirizzamento Mirato](#11--funzionalità-avanzate-completate-1-click-auto-fill--reindirizzamento-mirato)
+12. [Supporto Multi-TCG & Separazione per Brand](#12--supporto-multi-tcg--separazione-per-brand-pokémon-magic-yu-gi-oh)
+13. [Ripartizione del Valore & Grafico a Torta (Donut Chart) con Inclusione/Esclusione](#13--ripartizione-del-valore--grafico-a-torta-donut-chart-con-inclusioneesclusione-dinamica)
 
 ---
 
@@ -111,10 +114,15 @@ CardVault si appoggia a **YGOPRODeck** (100% gratuito, senza chiavi API, fino a 
 ## 7. Sistema di Sicurezza 2FA (Two-Factor Authentication)
 
 Per proteggere la collezione quando pubblicata online (su Render o altri server Cloud):
-1. **Master Password**: Cifratura `PBKDF2` con `SHA-512` e Salt crittografico a 16 byte.
-2. **Codice OTP a 6 Cifre (RFC 6238 TOTP)**: Compatibile con **Google Authenticator**, **Microsoft Authenticator**, **Apple Passwords**, **Authy**.
-3. **Sessioni Sicure (HMAC-SHA256)**: Token firmati salvati nel browser per un accesso fluido fino a 30 giorni.
-4. **Protezione Backend**: Tutti gli endpoint di salvataggio e sincronizzazione (`POST /api/*`) rifiutano richieste non autenticate.
+1. **Master PIN Integrato nel Codice**: PIN predefinito **`300800`** con cifratura `PBKDF2` (`SHA-512` e Salt crittografico dedicato), salvato in `server.js` e in `.auth_config.json`.
+2. **Codice OTP a 6 Cifre (RFC 6238 TOTP Standard)**:
+   - Chiave segreta permanente: **`CARDVAULT77FGAV2`** (Base32 a 16 caratteri RFC 4648 ad allineamento perfetto).
+   - Finestra di tolleranza allargata a **$\pm 60$ secondi** (5 step temporali: $-2, -1, 0, +1, +2$) per garantire la sincronizzazione istantanea con gli smartphone senza problemi di clock drift.
+   - Compatibile con **Google Authenticator**, **Microsoft Authenticator**, **Apple Passwords**, **Authy** e **1Password**.
+3. **Resistenza Totale ai Deploy e Sospensioni Cloud**:
+   - Poiché la chiave e il PIN sono memorizzati direttamente nel codice sorgente (`server.js`) e nel repository (`.auth_config.json`), **il server riparte sempre già configurato al 100%**, anche dopo sospensioni, sleep o 100 nuovi deploy su Render, senza bisogno di impostare variabili d'ambiente.
+4. **Sessioni Sicure (HMAC-SHA256)**: Token firmati salvati nel browser per un accesso fluido fino a 30 giorni (attivabile tramite la casella *"Ricorda questo dispositivo"*).
+5. **Protezione Backend**: Tutti gli endpoint di salvataggio e sincronizzazione (`POST /api/*`) rifiutano richieste non autenticate.
 
 ---
 
@@ -134,16 +142,20 @@ Tutte le operazioni effettuate nell'app vengono scritte in tempo reale nel file:
 ### 🖥️ A. Utilizzo in Locale sul PC
 1. Fai doppio clic su **`CardVault_TCG.bat`** sul tuo Desktop.
 2. Il server si avvierà in background e aprirà il browser su **`http://localhost:3000`**.
+3. Inserisci il Master PIN **`300800`** e il codice a 6 cifre da Google Authenticator per accedere.
 
 ### 📱 B. Utilizzo su Cloud & Telefono (Render.com)
-1. Apri la dashboard del tuo servizio su **Render.com**.
-2. Nelle variabili d'ambiente (**Environment**) imposta:
-   - `JUSTTCG_API_KEY`: `tcg_f0527f27d0f34dfa9c3480fa16e4e286`
-   - `CARDTRADER_TOKEN`: (il tuo Bearer Token di CardTrader)
-3. Apri **`https://cardvault-tcg.onrender.com`** da smartphone o PC.
-4. **Accesso Sicuro 2FA**:
-   - Inserisci il tuo **Master PIN / Password** e il **Codice a 6 cifre dall'app Google Authenticator**.
-   - Con la spunta *"Ricorda questo dispositivo (30 giorni)"* attiva, il tuo smartphone/browser resterà sbloccato per un mese intero senza dover reinserire le credenziali ad ogni apertura.
+1. Apri il tuo indirizzo **`https://cardvault-tcg.onrender.com`** da smartphone o PC.
+2. **Configurazione Google Authenticator (Una Sola Volta)**:
+   - Apri Google Authenticator $\rightarrow$ Premi **$+$** $\rightarrow$ **Inserisci chiave di configurazione**.
+   - Nome account: `CardVault`
+   - Chiave: **`CARDVAULT77FGAV2`**
+   - Tipo: **Basata sul tempo (TOTP)** $\rightarrow$ Salva.
+3. **Accesso Quotidiano**:
+   - Inserisci il Master PIN: **`300800`**.
+   - Inserisci il codice a 6 cifre generato in tempo reale dall'app.
+   - Spunta *"Ricorda questo dispositivo (30 giorni)"* per rimanere autenticato per un mese intero.
+   - Il login rimane valido e funzionante anche dopo riavvii del server o nuovi deploy.
 
 ---
 
