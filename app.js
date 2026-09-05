@@ -639,9 +639,6 @@
     } else if (game === 'magic') {
       cmGamePath = 'Magic';
       ebayPrefix = 'Magic The Gathering';
-     else if (game === 'lorcana') {
-      cmGamePath = 'Lorcana';
-      ebayPrefix = 'Disney Lorcana';
     } else if (game === 'riftbound') {
       cmGamePath = 'Riftbound';
       ebayPrefix = 'Riftbound Card';
@@ -3953,5 +3950,6 @@
     startApplication();
   }
 })();
+
 
 
