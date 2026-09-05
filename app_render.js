@@ -508,7 +508,9 @@
     const g = (gameStr || "yugioh").toLowerCase();
     if (g === "pokemon") return '<span class="brand-badge badge-pokemon">âš¡ PokÃ©mon</span>';
     if (g === "magic") return '<span class="brand-badge badge-magic">ðŸ§™ Magic</span>';
-            if (g === "riftbound") return '<span class="brand-badge badge-riftbound">⚔️ Riftbound</span>';
+    if (g === "onepiece") return '<span class="brand-badge badge-onepiece">ðŸ´â€â˜ ï¸ One Piece</span>';
+    if (g === "lorcana") return '<span class="brand-badge badge-lorcana">✨ Lorcana</span>';
+    if (g === "riftbound") return '<span class="brand-badge badge-riftbound">⚔️ Riftbound</span>';
     return '<span class="brand-badge badge-yugioh">ðŸŽ´ Yu-Gi-Oh!</span>';
   }
 
@@ -639,7 +641,10 @@
     } else if (game === 'magic') {
       cmGamePath = 'Magic';
       ebayPrefix = 'Magic The Gathering';
-     else if (game === 'lorcana') {
+    } else if (game === 'onepiece') {
+      cmGamePath = 'OnePiece';
+      ebayPrefix = 'One Piece Card';
+    } else if (game === 'lorcana') {
       cmGamePath = 'Lorcana';
       ebayPrefix = 'Disney Lorcana';
     } else if (game === 'riftbound') {

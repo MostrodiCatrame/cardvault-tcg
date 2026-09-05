@@ -1,4 +1,4 @@
-﻿// Local & Cloud Server for CardVault TCG
+// Local & Cloud Server for CardVault TCG
 // Include Sincronizzazione CSV, CardTrader API v2 e Sicurezza 2FA (Password + TOTP Google/Microsoft Authenticator)
 
 const http = require('http');
@@ -175,42 +175,36 @@ function getJustTcgUsageStats() {
 const BASE32_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 function base32Decode(base32) {
-  if (!base32) return Buffer.alloc(0);
-  const cleaned = String(base32).toUpperCase().replace(/[\s\-_=]/g, '');
+  let cleaned = base32.toUpperCase().replace(/=+$/, '').replace(/\s+/g, '');
   let bits = '';
   for (let i = 0; i < cleaned.length; i++) {
-    const val = BASE32_CHARS.indexOf(cleaned.charAt(i));
+    let val = BASE32_CHARS.indexOf(cleaned.charAt(i));
     if (val === -1) continue;
     bits += val.toString(2).padStart(5, '0');
   }
-  const bytes = [];
+  let bytes = [];
   for (let i = 0; i + 8 <= bits.length; i += 8) {
     bytes.push(parseInt(bits.substr(i, 8), 2));
   }
   return Buffer.from(bytes);
 }
 
-function generateSecret(length = 16) {
+function generateSecret(length = 20) {
   const bytes = crypto.randomBytes(length);
   let base32 = '';
-  for (let i = 0; i < length; i++) {
+  for (let i = 0; i < bytes.length; i++) {
     base32 += BASE32_CHARS.charAt(bytes[i] % 32);
   }
   return base32;
 }
 
-function verifyTOTP(secret, userCode, window = 2) {
+function verifyTOTP(secret, userCode, window = 1) {
   if (!secret || !userCode) return false;
-  const cleanSecret = String(secret).toUpperCase().replace(/[\s\-_=]/g, '');
-  const codeStr = String(userCode).trim().replace(/\s+/g, '');
-  if (codeStr.length !== 6 || !/^\d{6}$/.test(codeStr)) return false;
-
   const epoch = Math.floor(Date.now() / 1000);
   const currentTime = Math.floor(epoch / 30);
-  const key = base32Decode(cleanSecret);
-  if (!key || key.length === 0) return false;
+  const key = base32Decode(secret);
+  const codeStr = (userCode || '').trim();
 
-  // Window: checks -2, -1, 0, +1, +2 (spanning -60s to +60s for seamless clock sync)
   for (let errorWindow = -window; errorWindow <= window; errorWindow++) {
     const time = currentTime + errorWindow;
     const buf = Buffer.alloc(8);
@@ -219,80 +213,39 @@ function verifyTOTP(secret, userCode, window = 2) {
     const offset = hmac[hmac.length - 1] & 0xf;
     const code = ((hmac[offset] & 0x7f) << 24 | (hmac[offset + 1] & 0xff) << 16 | (hmac[offset + 2] & 0xff) << 8 | (hmac[offset + 3] & 0xff)) % 1000000;
     const genCode = code.toString().padStart(6, '0');
-    if (genCode === codeStr) {
-      return true;
-    }
+    if (genCode === codeStr) return true;
   }
   return false;
 }
 
 function hashPassword(password, salt) {
-  const pwd = String(password || '').trim();
-  const s = String(salt || 'cardvault_salt');
-  return crypto.pbkdf2Sync(pwd, s, 10000, 64, 'sha512').toString('hex');
+  return crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
 }
 
-// ==========================================
-// MASTER 2FA SECURITY CONFIGURATION (PERMANENTE A CODICE)
-// ==========================================
-const DEFAULT_MASTER_PIN = '300800';
-const DEFAULT_TOTP_SECRET = 'CARDVAULT77FGAV2';
-const DEFAULT_SALT = 'cardvault_master_salt_fgavagnin_2026';
-const DEFAULT_SESSION_SECRET = 'cardvault_session_secret_hmac_master_key_2026';
-
 let authConfig = {
-  enabled: true,
-  passwordHash: hashPassword(DEFAULT_MASTER_PIN, DEFAULT_SALT),
-  salt: DEFAULT_SALT,
-  totpSecret: DEFAULT_TOTP_SECRET,
-  sessionSecret: process.env.SESSION_SECRET || DEFAULT_SESSION_SECRET
+  enabled: false,
+  passwordHash: null,
+  salt: null,
+  totpSecret: null,
+  sessionSecret: crypto.randomBytes(32).toString('hex')
 };
 
 function loadAuthConfig() {
-  // Check JSON configuration files on disk (if already configured by the user via web setup)
-  const possiblePaths = [
-    ...getPossibleTokenPaths('.auth_config.json'),
-    path.join('C:', 'Users', 'fgava', '.cardvault_auth.json'),
-    path.join('C:', 'Users', 'fgava', 'OneDrive', 'Documenti', 'Desktop', 'CardVault', 'CardVault_GitHub', '.auth_config.json')
-  ];
-
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      try {
-        const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
-        if (data && data.enabled && data.passwordHash && data.totpSecret) {
-          authConfig = {
-            sessionSecret: DEFAULT_SESSION_SECRET,
-            ...data,
-            enabled: true
-          };
-          console.log('[CardVault] 2FA caricata e attiva da:', p);
-          return;
-        }
-      } catch (e) {}
-    }
+  if (fs.existsSync(AUTH_CONFIG_FILE)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(AUTH_CONFIG_FILE, 'utf-8'));
+      if (data && data.enabled) {
+        authConfig = { ...authConfig, ...data };
+      }
+    } catch (e) {}
   }
 }
 loadAuthConfig();
 
 function saveAuthConfig() {
-  const targetPaths = [
-    AUTH_CONFIG_FILE,
-    path.join(ROOT_DIR, '.auth_config.json'),
-    path.join(process.cwd(), '.auth_config.json'),
-    path.join('C:', 'Users', 'fgava', '.cardvault_auth.json'),
-    path.join('C:', 'Users', 'fgava', 'OneDrive', 'Documenti', 'Desktop', 'CardVault', 'CardVault_GitHub', '.auth_config.json')
-  ];
-
-  for (const p of targetPaths) {
-    try {
-      const dir = path.dirname(p);
-      if (fs.existsSync(dir)) {
-        fs.writeFileSync(p, JSON.stringify(authConfig, null, 2), 'utf-8');
-        console.log('[CardVault] 2FA salvata con successo su:', p);
-      }
-    } catch (e) {}
-  }
+  try {
+    fs.writeFileSync(AUTH_CONFIG_FILE, JSON.stringify(authConfig, null, 2), 'utf-8');
+  } catch (e) {}
 }
 
 function createSessionToken(userId = 'admin', rememberDays = 30) {
@@ -303,7 +256,7 @@ function createSessionToken(userId = 'admin', rememberDays = 30) {
 }
 
 function verifySessionToken(token) {
-  if (!authConfig.enabled) return true; // Auth disabilitata -> accesso libero
+  if (!authConfig.enabled) return true; // Auth disabled, open access
   if (!token) return false;
 
   try {
@@ -311,7 +264,7 @@ function verifySessionToken(token) {
     const parts = raw.split(':');
     if (parts.length !== 3) return false;
     const [userId, expiresAtStr, signature] = parts;
-    const expiresAt = parseInt(expiresAtStr, 10);
+    const expiresAt = parseInt(expiresAtStr);
 
     if (isNaN(expiresAt) || Date.now() > expiresAt) return false;
 
@@ -329,6 +282,10 @@ function getBearerToken(req) {
   }
   return null;
 }
+
+// Memory caches for CardTrader API
+let expansionsCache = null;
+const blueprintsCache = new Map(); // expansionId -> Array of blueprints
 
 function formatNumberToCsv(val) {
   if (val === undefined || val === null || isNaN(val)) return "0,00";
@@ -381,28 +338,15 @@ function fetchCardTrader(endpointPath) {
   });
 }
 
-// Memory caches for CardTrader API
-let expansionsCache = null;
-const expansionsCacheByGame = new Map();
-const blueprintsCache = new Map(); // expansionId -> Array of blueprints
-
-// Get expansions for a specific game (cached)
-async function getExpansionsForGame(gameId = 4) {
-  if (expansionsCacheByGame.has(gameId)) return expansionsCacheByGame.get(gameId);
-  try {
-    const allExpansions = await fetchCardTrader('/api/v2/expansions');
-    if (Array.isArray(allExpansions)) {
-      const filtered = allExpansions.filter(e => e.game_id === gameId);
-      expansionsCacheByGame.set(gameId, filtered);
-      return filtered;
-    }
-  } catch(e) {}
-  return [];
-}
-
 // Get all Yu-Gi-Oh! expansions (cached)
 async function getYuGiOhExpansions() {
-  return getExpansionsForGame(4);
+  if (expansionsCache) return expansionsCache;
+  const allExpansions = await fetchCardTrader('/api/v2/expansions');
+  if (Array.isArray(allExpansions)) {
+    expansionsCache = allExpansions.filter(e => e.game_id === 4);
+    return expansionsCache;
+  }
+  return [];
 }
 
 // Get blueprints for an expansion with pagination (cached)
@@ -466,7 +410,7 @@ function extractFilteredCardTraderPrices(items, card) {
       const match1st = ph.first_edition === true;
       return matchLang && matchCond && match1st;
     });
-    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} â€¢ ${card.condition || 'NM'} â€¢ 1Âª Edizione`;
+    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} • ${card.condition || 'NM'} • 1ª Edizione`;
   }
 
   // Level 2: Lang + Condition
@@ -477,7 +421,7 @@ function extractFilteredCardTraderPrices(items, card) {
       const matchCond = targetConds.includes(ph.condition);
       return matchLang && matchCond;
     });
-    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} â€¢ ${card.condition || 'NM'}`;
+    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} • ${card.condition || 'NM'}`;
   }
 
   // Level 3: Lang Only
@@ -495,7 +439,7 @@ function extractFilteredCardTraderPrices(items, card) {
       const ph = p.properties_hash || {};
       return targetConds.includes(ph.condition);
     });
-    if (matched.length > 0) filterLevel = `Globale â€¢ ${card.condition || 'NM'}`;
+    if (matched.length > 0) filterLevel = `Globale • ${card.condition || 'NM'}`;
   }
 
   // Level 5: Global All
@@ -623,7 +567,7 @@ async function fetchCardTraderPrice(card) {
 
 // Convert JSON cards back to the exact format of Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv
 function convertCardsToCsv(cards) {
-  const header = "NÂ°;Nome Carta;Espansione;Codice Carta;RaritÃ ;Edizione / Artwork;Lingua;Stato / Condizione;Cardmarket Min (â‚¬);Cardmarket Trend (â‚¬);CardTrader Min (â‚¬);CardTrader Trend (â‚¬);eBay Min (â‚¬);eBay Trend (â‚¬);Note";
+  const header = "N°;Nome Carta;Espansione;Codice Carta;Rarità;Edizione / Artwork;Lingua;Stato / Condizione;Cardmarket Min (€);Cardmarket Trend (€);CardTrader Min (€);CardTrader Trend (€);eBay Min (€);eBay Trend (€);Note";
   
   let totalCmMin = 0;
   let totalCmTrend = 0;
@@ -974,7 +918,6 @@ function fetchYgoProDeck(card) {
             const prices = ygo.card_prices && ygo.card_prices[0] ? ygo.card_prices[0] : {};
             resolve({
               success: true,
-              name: ygo.name,
               imageUrl: img.image_url_small || img.image_url || null,
               imageUrlLarge: img.image_url || null,
               imageUrlCropped: img.image_url_cropped || null,
@@ -987,7 +930,6 @@ function fetchYgoProDeck(card) {
               level: ygo.level || ygo.linkval,
               archetype: ygo.archetype || '',
               desc: ygo.desc || '',
-              cardSets: ygo.card_sets || [],
               prices: {
                 cardmarketFloor: parseFloat(prices.cardmarket_price) || 0,
                 tcgplayer: parseFloat(prices.tcgplayer_price) || 0,
@@ -1009,13 +951,11 @@ function fetchYgoProDeck(card) {
                     const img = ygo.card_images && ygo.card_images[0] ? ygo.card_images[0] : {};
                     resolve({
                       success: true,
-                      name: ygo.name,
                       imageUrl: img.image_url_small || img.image_url || null,
                       imageUrlLarge: img.image_url || null,
                       imageUrlCropped: img.image_url_cropped || null,
                       cardType: ygo.type || '',
                       desc: ygo.desc || '',
-                      cardSets: ygo.card_sets || [],
                       prices: {}
                     });
                   } else {
@@ -1039,296 +979,6 @@ function fetchYgoProDeck(card) {
       resolve({ success: false, reason: 'Timeout richiesta YGOPRODeck' });
     });
   });
-}
-
-function extractBlueprintIdFromInput(input) {
-  if (!input) return null;
-  const str = String(input).trim();
-  if (/^\d+$/.test(str)) return parseInt(str, 10);
-  const match = str.match(/(?:\/cards\/|\/blueprints\/|^)(\d+)/i);
-  if (match) return parseInt(match[1], 10);
-  return null;
-}
-
-function formatCardCodeForLanguage(baseCode, language) {
-  if (!baseCode) return '';
-  const code = baseCode.toUpperCase().trim();
-  const lang = (language || '').toLowerCase();
-  
-  let targetLangTag = 'IT';
-  if (lang.includes('ita') || lang.includes('italiano')) targetLangTag = 'IT';
-  else if (lang.includes('en') || lang.includes('ing') || lang.includes('english')) targetLangTag = 'EN';
-  else if (lang.includes('de') || lang.includes('ted') || lang.includes('deutsch')) targetLangTag = 'DE';
-  else if (lang.includes('fr') || lang.includes('fra') || lang.includes('franÃ§ais')) targetLangTag = 'FR';
-  else if (lang.includes('es') || lang.includes('spa') || lang.includes('spagnolo')) targetLangTag = 'ES';
-  else if (lang.includes('jp') || lang.includes('gia') || lang.includes('japanese')) targetLangTag = 'JP';
-
-  if (/^[A-Z0-9]+-[A-Z]{2}\d+$/.test(code)) {
-    return code.replace(/-[A-Z]{2}(\d+)$/, `-${targetLangTag}$1`);
-  } else if (/^[A-Z0-9]+-[A-Z]\d+$/.test(code)) {
-    return code.replace(/-[A-Z](\d+)$/, `-${targetLangTag}$1`);
-  } else if (/^[A-Z0-9]+-\d+$/.test(code)) {
-    if (targetLangTag !== 'EN') {
-      return code.replace(/-(\d+)$/, `-${targetLangTag}$1`);
-    }
-  }
-  return code;
-}
-
-function fetchScryfall(cardName) {
-  return new Promise((resolve) => {
-    const cleanName = (cardName || '').replace(/\s*\(.*?\)/g, '').trim();
-    const url = 'https://api.scryfall.com/cards/named?fuzzy=' + encodeURIComponent(cleanName);
-    const req = https.get(url, { headers: { 'User-Agent': 'CardVaultTCG/1.0', 'Accept': 'application/json' } }, res => {
-      let d = '';
-      res.on('data', c => d += c);
-      res.on('end', () => {
-        try {
-          const j = JSON.parse(d);
-          if (j && j.name) {
-            const imgNormal = (j.image_uris && j.image_uris.normal) || (j.card_faces && j.card_faces[0] && j.card_faces[0].image_uris && j.card_faces[0].image_uris.normal) || null;
-            const imgLarge = (j.image_uris && j.image_uris.large) || (j.card_faces && j.card_faces[0] && j.card_faces[0].image_uris && j.card_faces[0].image_uris.large) || imgNormal;
-            const imgCrop = (j.image_uris && j.image_uris.art_crop) || (j.card_faces && j.card_faces[0] && j.card_faces[0].image_uris && j.card_faces[0].image_uris.art_crop) || null;
-            const cmPrice = parseFloat(j.prices && j.prices.eur) || 0;
-            resolve({
-              success: true,
-              name: j.name,
-              setName: j.set_name,
-              setCode: (j.set || '').toUpperCase(),
-              collectorNumber: j.collector_number,
-              rarity: j.rarity ? (j.rarity.charAt(0).toUpperCase() + j.rarity.slice(1)) : 'Rare',
-              cardType: j.type_line || 'Magic Card',
-              desc: j.oracle_text || '',
-              manaCost: j.mana_cost || '',
-              imageUrl: imgNormal,
-              imageUrlLarge: imgLarge,
-              imageUrlCropped: imgCrop,
-              scryfallUrl: j.scryfall_uri || `https://scryfall.com/search?q=${encodeURIComponent(j.name)}`,
-              cmPrice: cmPrice
-            });
-          } else {
-            resolve({ success: false, reason: 'Carta non trovata su Scryfall' });
-          }
-        } catch(e) {
-          resolve({ success: false, reason: e.message });
-        }
-      });
-    });
-    req.on('error', e => resolve({ success: false, reason: e.message }));
-    req.setTimeout(8000, () => { req.destroy(); resolve({ success: false, reason: 'Timeout Scryfall' }); });
-  });
-}
-
-async function lookupCardTraderBlueprint(blueprintIdOrUrl, targetLanguage = 'Italiano (ITA)', condition = 'Near Mint', edition = '1st Edition') {
-  const bpId = extractBlueprintIdFromInput(blueprintIdOrUrl);
-  if (!bpId) {
-    throw new Error('ID Blueprint o URL CardTrader non valido. Incolla un link come https://www.cardtrader.com/it/cards/80186... o un ID numerico.');
-  }
-
-  // 1. Fetch Blueprint from CardTrader API
-  const bp = await fetchCardTrader(`/api/v2/blueprints/${bpId}`);
-  if (!bp || !bp.id) {
-    throw new Error(`Blueprint #${bpId} non trovato su CardTrader`);
-  }
-
-  // Determine game from CardTrader blueprint game_id
-  let game = 'yugioh';
-  const gameId = bp.game_id || 4;
-  if (gameId === 1) game = 'magic';
-  else if (gameId === 5) game = 'pokemon';
-  else if (gameId === 15) game = 'onepiece';
-  else if (gameId === 18) game = 'lorcana';
-  else if (gameId === 22) game = 'riftbound';
-  else game = 'yugioh';
-
-  // 2. Fetch Expansion Info for this game
-  const expansions = await getExpansionsForGame(gameId);
-  let defaultExpName = 'Yu-Gi-Oh! Expansion'; if (game === 'magic') defaultExpName = 'Magic Set'; else if (game === 'pokemon') defaultExpName = 'Pokémon Set'; else if (game === 'onepiece') defaultExpName = 'One Piece Set'; else if (game === 'lorcana') defaultExpName = 'Lorcana Set'; else if (game === 'riftbound') defaultExpName = 'Riftbound Set';
-  const exp = expansions.find(e => e.id === bp.expansion_id) || { name: defaultExpName, code: 'TCG' };
-
-  let finalCode = '';
-  let ygoRes = { success: false };
-  let scryfallRes = { success: false };
-  let cardImageUrl = (bp.image && bp.image.url ? `https://www.cardtrader.com${bp.image.url}` : null);
-  let cardImageUrlLarge = cardImageUrl;
-  let cardImageUrlCropped = null;
-  let cardType = '';
-  let cardDesc = '';
-  let ygoprodeckUrl = null;
-  let scryfallUrl = null;
-  let archetype = '';
-  let atk = null, def = null, level = null, attribute = '', race = '';
-
-  if (game === 'magic') {
-    scryfallRes = await fetchScryfall(bp.name);
-    if (scryfallRes.success) {
-      if (scryfallRes.imageUrl) cardImageUrl = scryfallRes.imageUrl;
-      if (scryfallRes.imageUrlLarge) cardImageUrlLarge = scryfallRes.imageUrlLarge;
-      if (scryfallRes.imageUrlCropped) cardImageUrlCropped = scryfallRes.imageUrlCropped;
-      cardType = scryfallRes.cardType;
-      cardDesc = scryfallRes.desc;
-      scryfallUrl = scryfallRes.scryfallUrl;
-      finalCode = `${scryfallRes.setCode || (exp.code || 'MTG').toUpperCase()}-${scryfallRes.collectorNumber || '001'}`;
-    } else {
-      cardType = 'Magic Card';
-      finalCode = `${(exp.code || 'MTG').toUpperCase()}-001`;
-    }
-  } else if (game === 'yugioh') {
-    ygoRes = await fetchYgoProDeck({ englishName: bp.name });
-    if (ygoRes.success) {
-      if (ygoRes.imageUrl) cardImageUrl = ygoRes.imageUrl;
-      if (ygoRes.imageUrlLarge) cardImageUrlLarge = ygoRes.imageUrlLarge;
-      if (ygoRes.imageUrlCropped) cardImageUrlCropped = ygoRes.imageUrlCropped;
-      cardType = ygoRes.cardType || '';
-      cardDesc = ygoRes.desc || '';
-      ygoprodeckUrl = ygoRes.ygoprodeckUrl;
-      race = ygoRes.race || '';
-      attribute = ygoRes.attribute || '';
-      atk = ygoRes.atk !== undefined ? ygoRes.atk : null;
-      def = ygoRes.def !== undefined ? ygoRes.def : null;
-      level = ygoRes.level !== undefined ? ygoRes.level : null;
-      archetype = ygoRes.archetype || '';
-
-      let matchedSetCode = '';
-      if (Array.isArray(ygoRes.cardSets) && ygoRes.cardSets.length > 0) {
-        const bpRarityNorm = normalizeRarity(bp.version);
-        const expClean = cleanStr(exp.name);
-        const expCodeClean = cleanStr(exp.code);
-
-        let match = ygoRes.cardSets.find(s => {
-          const sNameClean = cleanStr(s.set_name);
-          const sRarityNorm = normalizeRarity(s.set_rarity);
-          return (sNameClean === expClean || sNameClean.includes(expClean) || expClean.includes(sNameClean)) &&
-                 (sRarityNorm === bpRarityNorm || s.set_rarity.toLowerCase().includes(bp.version.toLowerCase()) || bp.version.toLowerCase().includes(s.set_rarity.toLowerCase()));
-        });
-
-        if (!match && expCodeClean) {
-          match = ygoRes.cardSets.find(s => {
-            const sCodeClean = cleanStr((s.set_code || '').split('-')[0]);
-            const sRarityNorm = normalizeRarity(s.set_rarity);
-            return sCodeClean === expCodeClean && (sRarityNorm === bpRarityNorm || s.set_rarity.toLowerCase().includes(bp.version.toLowerCase()));
-          });
-        }
-
-        if (!match) {
-          match = ygoRes.cardSets.find(s => {
-            const sNameClean = cleanStr(s.set_name);
-            return sNameClean === expClean || sNameClean.includes(expClean) || expClean.includes(sNameClean);
-          });
-        }
-
-        if (match && match.set_code) matchedSetCode = match.set_code;
-      }
-      if (!matchedSetCode && exp.code) matchedSetCode = `${exp.code.toUpperCase()}-EN001`;
-      finalCode = formatCardCodeForLanguage(matchedSetCode, targetLanguage);
-    } else {
-      finalCode = formatCardCodeForLanguage(`${(exp.code || 'TCG').toUpperCase()}-EN001`, targetLanguage);
-    }
-  } else if (game === 'pokemon') {
-    cardType = 'PokÃ©mon Card';
-    finalCode = `${(exp.code || 'PKM').toUpperCase()}-001`;
-  } else if (game === 'onepiece') {
-    cardType = 'One Piece Card';
-    finalCode = `${(exp.code || 'OP').toUpperCase()}-001`;
-  } else {
-    cardType = `${game.toUpperCase()} Card`;
-    finalCode = `${(exp.code || 'TCG').toUpperCase()}-001`;
-  }
-
-  // 5. Look up known Italian name from portfolio
-  let italianName = bp.name;
-  try {
-    const portfolio = getStoredPortfolio();
-    const existing = (portfolio.cards || []).find(c => (c.blueprintId === bp.id) || (cleanStr(c.englishName) === cleanStr(bp.name)));
-    if (existing && existing.name) {
-      italianName = existing.name;
-    }
-  } catch(e) {}
-
-  // 6. Fetch live CardTrader Prices
-  const tempCard = {
-    blueprintId: bp.id,
-    englishName: bp.name,
-    name: italianName,
-    code: finalCode,
-    expansion: exp.name,
-    rarity: bp.version || 'Rare',
-    edition: edition || '1st Edition',
-    language: targetLanguage,
-    condition: condition || 'Near Mint',
-    game: game
-  };
-
-  let ctMin = 0, ctTrend = 0, ctListings = 0, ctFilterLevel = '';
-  try {
-    const ctPriceRes = await fetchCardTraderPrice(tempCard);
-    if (ctPriceRes && ctPriceRes.success) {
-      ctMin = ctPriceRes.minPrice || 0;
-      ctTrend = ctPriceRes.trendPrice || 0;
-      ctListings = ctPriceRes.listingsCount || 0;
-      ctFilterLevel = ctPriceRes.filterLevel || '';
-    }
-  } catch(e) {}
-
-  // 7. Base Cardmarket / eBay estimates
-  let cmMin = (ygoRes.prices && ygoRes.prices.cardmarketFloor) || (scryfallRes && scryfallRes.cmPrice) || 0;
-  let cmTrend = cmMin > 0 ? parseFloat((cmMin * 1.15).toFixed(2)) : 0;
-  let ebMin = ctMin > 0 ? parseFloat((ctMin * 0.98).toFixed(2)) : (cmMin > 0 ? parseFloat((cmMin * 0.98).toFixed(2)) : 0);
-  let ebTrend = ctTrend > 0 ? parseFloat((ctTrend * 1.02).toFixed(2)) : (cmTrend > 0 ? parseFloat((cmTrend * 1.02).toFixed(2)) : 0);
-
-  const justKey = getJustTcgApiKey();
-  if (justKey && game === 'yugioh') {
-    try {
-      const justRes = await fetchJustTcgPrice(tempCard, justKey);
-      if (justRes && justRes.success) {
-        if (justRes.cmMin > 0) cmMin = justRes.cmMin;
-        if (justRes.cmTrend > 0) cmTrend = justRes.cmTrend;
-      }
-    } catch(e) {}
-  }
-
-  const ctSlug = bp.slug || `${bp.id}-${cleanStr(bp.name)}`;
-  const cardTraderUrl = `https://www.cardtrader.com/it/cards/${ctSlug}`;
-
-  return {
-    success: true,
-    blueprintId: bp.id,
-    game: game,
-    brand: game,
-    name: italianName,
-    englishName: bp.name,
-    expansion: exp.name,
-    code: finalCode,
-    rarity: bp.version || 'Rare',
-    edition: edition || '1st Edition',
-    language: targetLanguage,
-    condition: condition || 'Near Mint',
-    imageUrl: cardImageUrl,
-    imageUrlLarge: cardImageUrlLarge,
-    imageUrlCropped: cardImageUrlCropped,
-    cardType: cardType,
-    race: race,
-    attribute: attribute,
-    atk: atk,
-    def: def,
-    level: level,
-    archetype: archetype,
-    desc: cardDesc,
-    ygoprodeckUrl: ygoprodeckUrl,
-    scryfallUrl: scryfallUrl,
-    cardTraderUrl: cardTraderUrl,
-    ctMin: ctMin,
-    ctTrend: ctTrend,
-    cmMin: cmMin,
-    cmTrend: cmTrend,
-    ebMin: ebMin,
-    ebTrend: ebTrend,
-    ctListings: ctListings,
-    ctFilterLevel: ctFilterLevel,
-    trendStatus: (ctTrend > ctMin * 1.15 || cmTrend > cmMin * 1.15) ? 'up' : 'stable',
-    trendPct: (ctTrend > ctMin && ctMin > 0) ? parseFloat(((ctTrend - ctMin) / ctMin * 10).toFixed(1)) : 0,
-    notes: `Blueprint CT: #${bp.id} Â· ${game.toUpperCase()}`
-  };
 }
 
 // JustTCG API Request Helper with Monthly Quota Tracking (1000 Calls/Month)
@@ -1375,7 +1025,7 @@ function fetchJustTcgPrice(card, apiKey) {
             const targetRarity = normalizeRarity(card.rarity);
             const targetExp = cleanStr(card.expansion);
 
-            // Hierarchical Scoring Matcher (Codice + RaritÃ  + Espansione)
+            // Hierarchical Scoring Matcher (Codice + Rarità + Espansione)
             let match = null;
             let bestScore = -1;
 
@@ -1395,14 +1045,14 @@ function fetchJustTcgPrice(card, apiKey) {
                 }
               }
 
-              // 2. Corrispondenza RaritÃ  (Cruciale per Ghost, Ultimate, QCR, Secret)
+              // 2. Corrispondenza Rarità (Cruciale per Ghost, Ultimate, QCR, Secret)
               if (targetRarity) {
                 if (itemRarity === targetRarity || itemName.includes(targetRarity) || (item.rarity && item.rarity.toLowerCase().includes(targetRarity))) {
                   score += 45;
                 } else if (targetRarity.includes(itemRarity) && itemRarity.length > 3) {
                   score += 25;
                 } else {
-                  // Forte penalitÃ  se la carta Ã¨ Ghost/Ultimate/QCR/Secret e l'item Ã¨ Common/Ultra/Super
+                  // Forte penalità se la carta è Ghost/Ultimate/QCR/Secret e l'item è Common/Ultra/Super
                   score -= 25;
                 }
               }
@@ -1420,7 +1070,7 @@ function fetchJustTcgPrice(card, apiKey) {
               }
             }
 
-            // Safety threshold: se il punteggio Ã¨ troppo basso, non sovrascrivere
+            // Safety threshold: se il punteggio è troppo basso, non sovrascrivere
             if (bestScore < 30) {
               match = null;
             }
@@ -1450,7 +1100,7 @@ function fetchJustTcgPrice(card, apiKey) {
               const trendEuro = avgUsd > 0 ? parseFloat((avgUsd * 0.92).toFixed(2)) : (priceEuro > 0 ? parseFloat((priceEuro * 1.15).toFixed(2)) : 0);
 
               const stats = getJustTcgUsageStats();
-              console.log(`[JustTCG Result] Trovata "${match.name}" (${match.number} - ${match.rarity}) -> Min â‚¬${priceEuro} | Trend â‚¬${trendEuro} [Chiamate usate: ${stats.count}/${stats.monthlyLimit}]`);
+              console.log(`[JustTCG Result] Trovata "${match.name}" (${match.number} - ${match.rarity}) -> Min €${priceEuro} | Trend €${trendEuro} [Chiamate usate: ${stats.count}/${stats.monthlyLimit}]`);
 
               resolve({
                 success: true,
@@ -1542,14 +1192,14 @@ async function fetchMultiMarketplaceCard(card, justTcgKey) {
         logItem.newCmMin = justRes.cmMin;
         updated.cmMin = justRes.cmMin;
         updated.baseCmMin = justRes.cmMin;
-        logItem.sources.push(`JustTCG Cardmarket Min â‚¬${justRes.cmMin}`);
+        logItem.sources.push(`JustTCG Cardmarket Min €${justRes.cmMin}`);
       }
       if (justRes.cmTrend > 0) {
         logItem.oldCmTrend = updated.cmTrend;
         logItem.newCmTrend = justRes.cmTrend;
         updated.cmTrend = justRes.cmTrend;
         updated.baseCmTrend = justRes.cmTrend;
-        logItem.sources.push(`JustTCG Cardmarket Trend â‚¬${justRes.cmTrend}`);
+        logItem.sources.push(`JustTCG Cardmarket Trend €${justRes.cmTrend}`);
       }
     } else if (justRes.reason) {
       logItem.sources.push(`JustTCG: ${justRes.reason}`);
@@ -1584,39 +1234,34 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ==========================================
-  // AUTHENTICATION API ROUTES (2FA & Access Token)
+  // AUTHENTICATION API ROUTES (2FA)
   // ==========================================
   if (req.url === '/api/auth/status' && req.method === 'GET') {
-    if (!authConfig.enabled) loadAuthConfig();
     const token = getBearerToken(req);
     const isValid = verifySessionToken(token);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
-      isSetup: authConfig.enabled && !!authConfig.passwordHash,
-      isAuthenticated: !authConfig.enabled || isValid
+      isSetup: authConfig.enabled,
+      isAuthenticated: isValid
     }));
     return;
   }
 
   // Init 2FA Setup: Generate secret and OTPAuth URL (Protected against overwrite)
   if (req.url === '/api/auth/setup-init' && req.method === 'POST') {
-    if (!authConfig.enabled) loadAuthConfig();
-    if (authConfig.enabled && authConfig.passwordHash && authConfig.totpSecret) {
+    if (authConfig.enabled) {
       const token = getBearerToken(req);
       if (!verifySessionToken(token)) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: false,
-          error: "La protezione 2FA Ã¨ giÃ  attiva su questo Vault. Solo l'amministratore autenticato puÃ² riconfigurarla."
+          error: "La protezione 2FA è già attiva su questo Vault. Solo l'amministratore autenticato può riconfigurarla."
         }));
         return;
       }
     }
 
-    if (!pendingSetupSecret) {
-      pendingSetupSecret = generateSecret(16);
-    }
-    const secret = pendingSetupSecret;
+    const secret = generateSecret(20);
     const otpAuthUrl = `otpauth://totp/CardVault:Fgavagnin?secret=${secret}&issuer=CardVault`;
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
@@ -1630,14 +1275,13 @@ const server = http.createServer(async (req, res) => {
 
   // Complete 2FA Setup: Validate first OTP & save password (Protected against overwrite)
   if (req.url === '/api/auth/setup-complete' && req.method === 'POST') {
-    if (!authConfig.enabled) loadAuthConfig();
-    if (authConfig.enabled && authConfig.passwordHash && authConfig.totpSecret) {
+    if (authConfig.enabled) {
       const token = getBearerToken(req);
       if (!verifySessionToken(token)) {
         res.writeHead(403, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
           success: false,
-          error: "Operazione non consentita: la 2FA Ã¨ giÃ  stata configurata. Impossibile sovrascrivere l'account senza autenticazione."
+          error: "Operazione non consentita: la 2FA è già stata configurata. Impossibile sovrascrivere l'account senza autenticazione."
         }));
         return;
       }
@@ -1647,27 +1291,22 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { password, secret, otpCode } = JSON.parse(body || '{}');
-        const cleanPassword = String(password || '').trim();
-        const cleanSecret = String(secret || '').toUpperCase().replace(/[\s\-_=]/g, '');
-        const cleanOtp = String(otpCode || '').trim().replace(/\s+/g, '');
-
-        if (!cleanPassword || cleanPassword.length < 4) {
-          throw new Error("Il PIN / Master Password deve contenere almeno 4 caratteri");
+        const { password, secret, otpCode } = JSON.parse(body);
+        if (!password || password.length < 4) {
+          throw new Error("La password deve contenere almeno 4 caratteri");
         }
-        if (!cleanSecret || !verifyTOTP(cleanSecret, cleanOtp, 2)) {
-          throw new Error("Codice OTP non valido o scaduto. Inserisci il codice a 6 cifre visualizzato sulla tua app Authenticator");
+        if (!secret || !verifyTOTP(secret, otpCode)) {
+          throw new Error("Codice OTP non valido o scaduto. Inserisci il codice a 6 cifre visualizzato sulla tua app");
         }
 
         const salt = crypto.randomBytes(16).toString('hex');
-        const passwordHash = hashPassword(cleanPassword, salt);
+        const passwordHash = hashPassword(password, salt);
 
         authConfig.enabled = true;
         authConfig.passwordHash = passwordHash;
         authConfig.salt = salt;
-        authConfig.totpSecret = cleanSecret;
-        authConfig.sessionSecret = authConfig.sessionSecret || DEFAULT_SESSION_SECRET;
-        pendingSetupSecret = null;
+        authConfig.totpSecret = secret;
+        authConfig.sessionSecret = crypto.randomBytes(32).toString('hex');
 
         saveAuthConfig();
 
@@ -1682,32 +1321,31 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Login: Verifica Master PIN / Password + Codice OTP a 6 Cifre Authenticator
+  // Login: Check Master Password + 6-digit TOTP Code
   if (req.url === '/api/auth/login' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { password, otpCode, rememberMe } = JSON.parse(body || '{}');
-        const cleanPassword = String(password || '').trim();
-        const cleanOtp = String(otpCode || '').trim().replace(/\s+/g, '');
-        const days = rememberMe !== false ? 30 : 1;
-
-        if (!authConfig.enabled || !authConfig.passwordHash || !authConfig.totpSecret) {
-          throw new Error("La protezione 2FA non Ã¨ ancora stata configurata. Clicca in basso per impostare il tuo PIN e associare il QR Code con Authenticator.");
+        const { password, otpCode, rememberMe } = JSON.parse(body);
+        if (!authConfig.enabled) {
+          // If not configured, allow access and create token
+          const token = createSessionToken('admin', 30);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, token: token }));
+          return;
         }
 
-        // 1. Verifica PIN / Master Password con PBKDF2
-        const calculatedHash = hashPassword(cleanPassword, authConfig.salt);
+        const calculatedHash = hashPassword(password || '', authConfig.salt);
         if (calculatedHash !== authConfig.passwordHash) {
-          throw new Error("PIN o Master Password non corretta");
+          throw new Error("Password non corretta");
         }
 
-        // 2. Verifica Codice OTP Authenticator (finestra allargata a +-60s)
-        if (!verifyTOTP(authConfig.totpSecret, cleanOtp, 2)) {
-          throw new Error("Codice Authenticator a 6 cifre non valido o scaduto. Inserisci il codice visualizzato adesso sull'app Authenticator.");
+        if (!verifyTOTP(authConfig.totpSecret, otpCode)) {
+          throw new Error("Codice OTP a 6 cifre non valido o scaduto");
         }
 
+        const days = rememberMe ? 30 : 1;
         const token = createSessionToken('admin', days);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, token: token }));
@@ -1722,22 +1360,15 @@ const server = http.createServer(async (req, res) => {
   // ==========================================
   // AUTH MIDDLEWARE FOR SENSITIVE API ENDPOINTS
   // ==========================================
-  const isProtectedApi = authConfig.enabled && (
-    req.url === '/api/portfolio' ||
-    req.url.startsWith('/api/save') ||
-    req.url.startsWith('/api/cardtrader') ||
-    req.url.startsWith('/api/card/autofill') ||
-    req.url.startsWith('/api/justtcg') ||
-    req.url.startsWith('/api/reset-baseline') ||
-    req.url.startsWith('/api/import-csv') ||
-    (req.url.startsWith('/api/portfolio') && req.method === 'POST')
-  );
+  const isProtectedApi = (req.url.startsWith('/api/save') ||
+                          req.url.startsWith('/api/cardtrader') ||
+                          (req.url.startsWith('/api/portfolio') && req.method === 'POST'));
 
-  if (isProtectedApi) {
+  if (isProtectedApi && authConfig.enabled) {
     const token = getBearerToken(req);
     if (!verifySessionToken(token)) {
       res.writeHead(401, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: "Accesso non autorizzato. Inserisci il token di accesso o effettua il login." }));
+      res.end(JSON.stringify({ error: "Accesso non autorizzato. Effettua il login 2FA." }));
       return;
     }
   }
@@ -1795,33 +1426,6 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, user: info.name }));
       } catch (err) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: err.message }));
-      }
-    });
-    return;
-  }
-
-  // API: 1-Click Auto-Fill Card Lookup from CardTrader Blueprint / URL
-  if ((req.url === '/api/cardtrader/lookup-blueprint' || req.url === '/api/card/autofill') && req.method === 'POST') {
-    let body = '';
-    req.on('data', chunk => body += chunk);
-    req.on('end', async () => {
-      try {
-        const payload = JSON.parse(body || '{}');
-        const input = payload.url || payload.blueprintId || payload.input;
-        if (!input) {
-          throw new Error("Inserisci un link CardTrader o un ID Blueprint valido");
-        }
-        const language = payload.language || 'Italiano (ITA)';
-        const condition = payload.condition || 'Near Mint';
-        const edition = payload.edition || '1st Edition';
-
-        const result = await lookupCardTraderBlueprint(input, language, condition, edition);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result));
-      } catch(err) {
-        console.error('[Lookup Blueprint Error]', err.message);
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
@@ -2170,20 +1774,16 @@ const server = http.createServer(async (req, res) => {
     }
 
     const contentType = mimeTypes[ext] || 'application/octet-stream';
-    res.writeHead(200, { 
-      'Content-Type': contentType,
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
-    });
+    res.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' });
     fs.createReadStream(filePath).pipe(res);
   });
 });
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log('====================================================');
-  console.log(`ðŸš€ CardVault TCG Server attivo su: http://0.0.0.0:${PORT}`);
-  console.log(`ðŸ“ File CSV collegato: ${CSV_FILE_PATH}`);
-  console.log(`âš¡ CardTrader API: Connessa (Token Attivo)`);
-  console.log(`ðŸ” Sicurezza 2FA: ${authConfig.enabled ? 'Attiva' : 'In attesa di configurazione iniziale'}`);
+  console.log(`🚀 CardVault TCG Server attivo su: http://0.0.0.0:${PORT}`);
+  console.log(`📁 File CSV collegato: ${CSV_FILE_PATH}`);
+  console.log(`⚡ CardTrader API: Connessa (Token Attivo)`);
+  console.log(`🔐 Sicurezza 2FA: ${authConfig.enabled ? 'Attiva' : 'In attesa di configurazione iniziale'}`);
   console.log('====================================================');
 });
-
