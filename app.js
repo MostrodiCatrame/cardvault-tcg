@@ -1,4 +1,4 @@
-﻿// CardVault TCG - Yu-Gi-Oh! Portfolio, Market Monitor & Wants Manager
+// CardVault TCG - Yu-Gi-Oh! Portfolio, Market Monitor & Wants Manager
 // Complete Application Logic, Real-Time File Sync & Calibrated Pricing Engine
 
 (function () {
@@ -270,7 +270,7 @@
           // Local card is strictly newer!
           merged.push(localCard);
           needsPush = true;
-          console.log(`[SmartMerge] Mantengo versione locale piÃ¹ recente per "${localCard.name}" (${localCard.code})`);
+          console.log(`[SmartMerge] Mantengo versione locale più recente per "${localCard.name}" (${localCard.code})`);
         } else {
           // Remote is newer or equal
           const mergedCard = { ...localCard, ...matchedRemote };
@@ -379,11 +379,11 @@
           render();
 
           if (cardMergeResult.needsPush || wantMergeResult.needsPush) {
-            console.log("[CardVault] Rilevate modifiche locali piÃ¹ recenti! Sincronizzazione automatica su server e CSV...");
+            console.log("[CardVault] Rilevate modifiche locali più recenti! Sincronizzazione automatica su server e CSV...");
             await syncPortfolioWithDiskCsv(true);
           }
 
-          console.log(`[CardVault] Sincronizzazione completata: ${cards.length} carte e ${wants.length} wants caricate con la versione piÃ¹ recente.`);
+          console.log(`[CardVault] Sincronizzazione completata: ${cards.length} carte e ${wants.length} wants caricate con la versione più recente.`);
         }
       }
     } catch (err) {
@@ -506,10 +506,10 @@
 
   function getGameBadgeHtml(gameStr) {
     const g = (gameStr || "yugioh").toLowerCase();
-    if (g === "pokemon") return '<span class="brand-badge badge-pokemon">âš¡ PokÃ©mon</span>';
-    if (g === "magic") return '<span class="brand-badge badge-magic">ðŸ§™ Magic</span>';
-            if (g === "riftbound") return '<span class="brand-badge badge-riftbound">⚔️ Riftbound</span>';
-    return '<span class="brand-badge badge-yugioh">ðŸŽ´ Yu-Gi-Oh!</span>';
+    if (g === "pokemon") return '<span class="brand-badge badge-pokemon">⚡ Pokémon</span>';
+    if (g === "magic") return '<span class="brand-badge badge-magic">🧙 Magic</span>';
+            if (g === "riftbound") return '<span class="brand-badge badge-riftbound">⚔️ Riftbound</span>';
+    return '<span class="brand-badge badge-yugioh">🎴 Yu-Gi-Oh!</span>';
   }
 
   function getAuthToken() {
@@ -544,7 +544,7 @@
       if (res.ok) {
         isServerConnected = true;
         syncIndicatorDot.style.background = "#10b981";
-        syncStatusLabel.textContent = "ðŸŸ¢ Sincronizzato con Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv";
+        syncStatusLabel.textContent = "🟢 Sincronizzato con Listino_Prezzi_Yugioh_Cardmarket_CardTrader.csv";
         btnSaveDiskText.textContent = "Salva su File CSV (Disco)";
         return true;
       }
@@ -554,7 +554,7 @@
 
     isServerConnected = false;
     syncIndicatorDot.style.background = "#94a3b8";
-    syncStatusLabel.textContent = `Salvataggio Browser Locale â€¢ Ricalcolo: ${lastUpdated}`;
+    syncStatusLabel.textContent = `Salvataggio Browser Locale • Ricalcolo: ${lastUpdated}`;
     btnSaveDiskText.textContent = "Scarica CSV Aggiornato";
     return false;
   }
@@ -576,14 +576,14 @@
         });
         if (res.status === 401) {
           if (!silent) {
-            showToast("ðŸ”’ Richiesta autenticazione 2FA per salvare le modifiche sul server.", "warning");
+            showToast("🔒 Richiesta autenticazione 2FA per salvare le modifiche sul server.", "warning");
           }
           return false;
         }
         const data = await res.json();
         if (data.success) {
           if (!silent) {
-            showToast("ðŸ“ Dati sincronizzati con successo con il server!");
+            showToast("📁 Dati sincronizzati con successo con il server!");
           }
           return true;
         }
@@ -599,15 +599,15 @@
   // ==========================================
   
   function getLanguageFlag(lang) {
-    if (!lang) return "ðŸŒ";
+    if (!lang) return "🌐";
     const l = String(lang).toLowerCase();
-    if (l.includes("ita") || l.includes("italiano")) return "ðŸ‡®ðŸ‡¹";
-    if (l.includes("en") || l.includes("inglese") || l.includes("eng")) return "ðŸ‡¬ðŸ‡§";
-    if (l.includes("de") || l.includes("tedesco") || l.includes("ger")) return "ðŸ‡©ðŸ‡ª";
-    if (l.includes("fr") || l.includes("francese")) return "ðŸ‡«ðŸ‡·";
-    if (l.includes("es") || l.includes("spagnolo") || l.includes("spa")) return "ðŸ‡ªðŸ‡¸";
-    if (l.includes("jp") || l.includes("giapponese") || l.includes("jap")) return "ðŸ‡¯ðŸ‡µ";
-    return "ðŸŒ";
+    if (l.includes("ita") || l.includes("italiano")) return "🇮🇹";
+    if (l.includes("en") || l.includes("inglese") || l.includes("eng")) return "🇬🇧";
+    if (l.includes("de") || l.includes("tedesco") || l.includes("ger")) return "🇩🇪";
+    if (l.includes("fr") || l.includes("francese")) return "🇫🇷";
+    if (l.includes("es") || l.includes("spagnolo") || l.includes("spa")) return "🇪🇸";
+    if (l.includes("jp") || l.includes("giapponese") || l.includes("jap")) return "🇯🇵";
+    return "🌐";
   }
 
   
@@ -625,7 +625,7 @@
     if (l.includes("ita") || l.includes("italiano")) cmLangId = 5;
     else if (l.includes("en") || l.includes("ing") || l.includes("english")) cmLangId = 1;
     else if (l.includes("de") || l.includes("ted") || l.includes("deutsch")) cmLangId = 3;
-    else if (l.includes("fr") || l.includes("fra") || l.includes("franÃ§ais")) cmLangId = 2;
+    else if (l.includes("fr") || l.includes("fra") || l.includes("français")) cmLangId = 2;
     else if (l.includes("es") || l.includes("spa") || l.includes("spagnolo")) cmLangId = 4;
     else if (l.includes("jp") || l.includes("gia") || l.includes("japanese")) cmLangId = 6;
 
@@ -668,8 +668,8 @@
   }
 
   function formatEuro(val) {
-    if (val === undefined || val === null || isNaN(val)) return "â‚¬ 0,00";
-    return "â‚¬ " + Number(val).toLocaleString("it-IT", {
+    if (val === undefined || val === null || isNaN(val)) return "€ 0,00";
+    return "€ " + Number(val).toLocaleString("it-IT", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
@@ -695,25 +695,25 @@
 
   function getPlatformTrend(min, trend, baseTrend) {
     if (!trend || !min || trend <= 0 || min <= 0) {
-      return { status: "stable", symbol: "â†”", label: "Stabile", class: "stable" };
+      return { status: "stable", symbol: "↔", label: "Stabile", class: "stable" };
     }
 
     if (baseTrend && baseTrend > 0) {
       const diffPct = ((trend - baseTrend) / baseTrend) * 100;
       if (diffPct >= 1.5) {
-        return { status: "up", symbol: "â†—", label: `In Rialzo (+${diffPct.toFixed(1)}%)`, class: "up" };
+        return { status: "up", symbol: "↗", label: `In Rialzo (+${diffPct.toFixed(1)}%)`, class: "up" };
       } else if (diffPct <= -1.5) {
-        return { status: "down", symbol: "â†˜", label: `In Calo (${diffPct.toFixed(1)}%)`, class: "down" };
+        return { status: "down", symbol: "↘", label: `In Calo (${diffPct.toFixed(1)}%)`, class: "down" };
       }
     }
 
     const ratio = trend / min;
     if (ratio >= 1.18) {
-      return { status: "up", symbol: "â†—", label: `In Rialzo (+${((ratio - 1) * 100).toFixed(0)}% vs Min)`, class: "up" };
+      return { status: "up", symbol: "↗", label: `In Rialzo (+${((ratio - 1) * 100).toFixed(0)}% vs Min)`, class: "up" };
     } else if (ratio <= 1.05) {
-      return { status: "down", symbol: "â†˜", label: "In Calo / A ridosso del minimo", class: "down" };
+      return { status: "down", symbol: "↘", label: "In Calo / A ridosso del minimo", class: "down" };
     } else {
-      return { status: "stable", symbol: "â†”", label: "Stabile / Equilibrato", class: "stable" };
+      return { status: "stable", symbol: "↔", label: "Stabile / Equilibrato", class: "stable" };
     }
   }
 
@@ -928,7 +928,7 @@
   function populateFilterDropdowns() {
     const rarities = Array.from(new Set(cards.map(c => c.rarity).filter(Boolean))).sort();
     const currentRarityVal = filterRarity.value;
-    filterRarity.innerHTML = '<option value="all">Tutte le RaritÃ </option>';
+    filterRarity.innerHTML = '<option value="all">Tutte le Rarità</option>';
     rarities.forEach(r => {
       const opt = document.createElement("option");
       opt.value = r;
@@ -963,7 +963,7 @@
   function populateWantsFilterDropdowns() {
     const rarities = Array.from(new Set(wants.map(w => w.rarity).filter(Boolean))).sort();
     const currentRarityVal = filterWantsRarity.value;
-    filterWantsRarity.innerHTML = '<option value="all">Tutte le RaritÃ </option>';
+    filterWantsRarity.innerHTML = '<option value="all">Tutte le Rarità</option>';
     rarities.forEach(r => {
       const opt = document.createElement("option");
       opt.value = r;
@@ -1091,13 +1091,13 @@
 
     if (topCard) {
       kpiTopCardName.textContent = topCard.name;
-      kpiTopCardMeta.textContent = `${topCard.code} â€¢ ${topCard.rarity}`;
+      kpiTopCardMeta.textContent = `${topCard.code} • ${topCard.rarity}`;
       const topAvg = getCardAverages(topCard);
       kpiTopCardVal.textContent = formatEuro(topAvg.avgTrend);
     } else {
       kpiTopCardName.textContent = "-";
       kpiTopCardMeta.textContent = "-";
-      kpiTopCardVal.textContent = "â‚¬ 0,00";
+      kpiTopCardVal.textContent = "€ 0,00";
     }
 
     renderAllocationChart(list);
@@ -1143,7 +1143,7 @@
     if (centerCountEl) centerCountEl.textContent = `${includedCards.length} / ${cardsToProcess.length} Carte`;
     if (summaryInfoEl) {
       const pct = cardsToProcess.length > 0 ? ((includedCards.length / cardsToProcess.length) * 100).toFixed(0) : 0;
-      summaryInfoEl.textContent = `${includedCards.length} carte incluse (${pct}%) â€¢ ${formatEuro(totalIncludedVal)}`;
+      summaryInfoEl.textContent = `${includedCards.length} carte incluse (${pct}%) • ${formatEuro(totalIncludedVal)}`;
     }
 
     // Render SVG Slices
@@ -1201,14 +1201,14 @@
           <div class="breakdown-card-name" title="${escapeHtml(item.card.name)}">
             ${getGameBadgeHtml(item.card.game)}${escapeHtml(item.card.name)}
           </div>
-          <div class="breakdown-card-sub">${escapeHtml(item.card.code)} â€¢ ${escapeHtml(item.card.rarity)}</div>
+          <div class="breakdown-card-sub">${escapeHtml(item.card.code)} • ${escapeHtml(item.card.rarity)}</div>
         </div>
         <div class="breakdown-stats-wrap">
           <div class="breakdown-val">${formatEuro(item.val)}</div>
           <div class="breakdown-pct" style="color: ${item.isExcluded ? 'var(--text-muted)' : '#38bdf8'};">${pct}%</div>
         </div>
         <button type="button" class="calc-toggle-btn" data-toggle-id="${item.card.id}" title="${item.isExcluded ? 'Includi nel calcolo totale' : 'Escludi dal calcolo totale'}">
-          ${item.isExcluded ? 'â¬œ' : 'âœ…'}
+          ${item.isExcluded ? '⬜' : '✅'}
         </button>
       `;
 
@@ -1235,8 +1235,8 @@
       if (!tooltipEl) return;
       tooltipEl.innerHTML = `
         <strong>${escapeHtml(item.card.name)}</strong><br/>
-        <span style="color: var(--text-muted);">${escapeHtml(item.card.code)} â€¢ ${escapeHtml(item.card.rarity)}</span><br/>
-        <span style="color: #fef08a; font-weight: 700;">${formatEuro(item.val)}</span> â€¢ <span style="color: #38bdf8; font-weight: 700;">${pct}% del totale</span>
+        <span style="color: var(--text-muted);">${escapeHtml(item.card.code)} • ${escapeHtml(item.card.rarity)}</span><br/>
+        <span style="color: #fef08a; font-weight: 700;">${formatEuro(item.val)}</span> • <span style="color: #38bdf8; font-weight: 700;">${pct}% del totale</span>
       `;
       tooltipEl.style.display = "block";
     });
@@ -1281,11 +1281,11 @@
 
       let trendBadgeHtml = "";
       if (card.trendStatus === "up") {
-        trendBadgeHtml = `<span class="trend-badge up">â†— +${card.trendPct || 0}%</span>`;
+        trendBadgeHtml = `<span class="trend-badge up">↗ +${card.trendPct || 0}%</span>`;
       } else if (card.trendStatus === "down") {
-        trendBadgeHtml = `<span class="trend-badge down">â†˜ ${card.trendPct || 0}%</span>`;
+        trendBadgeHtml = `<span class="trend-badge down">↘ ${card.trendPct || 0}%</span>`;
       } else {
-        trendBadgeHtml = `<span class="trend-badge stable">â†” Stabile</span>`;
+        trendBadgeHtml = `<span class="trend-badge stable">↔ Stabile</span>`;
       }
 
       const urls = getCardUrls(card);
@@ -1321,16 +1321,16 @@
               <div class="card-cell-name" style="cursor: pointer;" data-lightbox-id="${card.id}">
                 ${getGameBadgeHtml(card.game)}<strong>${escapeHtml(card.name)}</strong>
               </div>
-          ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">ðŸŒ ${escapeHtml(card.englishName)}</span></div>` : ''}
+          ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
           <div class="card-cell-sub">${escapeHtml(card.edition || "")}</div>
           ${card.notes ? `<div class="card-cell-notes">${escapeHtml(card.notes)}</div>` : ""}
-          ${card.updatedAt ? `<div class="card-cell-timestamp" title="Ultima modifica: ${formatFullDate(card.updatedAt)}">ðŸ•’ ${formatShortDate(card.updatedAt)}</div>` : ""}
+          ${card.updatedAt ? `<div class="card-cell-timestamp" title="Ultima modifica: ${formatFullDate(card.updatedAt)}">🕒 ${formatShortDate(card.updatedAt)}</div>` : ""}
             </div>
           </div>
         </td>
         <td class="col-rarity">
           <span class="badge-rarity ${getRarityClass(card.rarity)}">${escapeHtml(card.rarity)}</span>
-          <div class="card-cell-sub"><strong>${escapeHtml(card.code)}</strong> â€¢ ${escapeHtml(card.expansion)}</div>
+          <div class="card-cell-sub"><strong>${escapeHtml(card.code)}</strong> • ${escapeHtml(card.expansion)}</div>
         </td>
         <td class="col-cond">
           <span class="badge-condition ${getConditionClass(card.condition)}">${escapeHtml(card.condition)}</span>
@@ -1389,7 +1389,7 @@
                   <span class="market-dot cm"></span> Cardmarket (Nome EN)
                 </a>
                 <a href="${ctBestUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="${card.blueprintId ? 'Apri direttamente Blueprint #' + card.blueprintId + ' su CardTrader' : 'Cerca su CardTrader'}">
-                  <span class="market-dot ct"></span> CardTrader ${card.blueprintId ? 'âš¡ (Blueprint #' + card.blueprintId + ')' : '(Ricerca)'}
+                  <span class="market-dot ct"></span> CardTrader ${card.blueprintId ? '⚡ (Blueprint #' + card.blueprintId + ')' : '(Ricerca)'}
                 </a>
                 <a href="${ebUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca '${code} ${engName}' su eBay.it Compralo Subito">
                   <span class="market-dot eb"></span> eBay.it (Compralo Subito)
@@ -1400,12 +1400,12 @@
               </div>
             </div>
 
-            <button type="button" class="action-btn-sm btn-ct-single" data-id="${card.id}" title="âš¡ Sincronizza CardTrader Live">
+            <button type="button" class="action-btn-sm btn-ct-single" data-id="${card.id}" title="⚡ Sincronizza CardTrader Live">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
               </svg>
             </button>
-            <button type="button" class="action-btn-sm btn-marketplaces-single" data-id="${card.id}" title="ðŸŒ Sincronizza Mercati & Artwork HD" style="color: #0ea5e9;">
+            <button type="button" class="action-btn-sm btn-marketplaces-single" data-id="${card.id}" title="🌐 Sincronizza Mercati & Artwork HD" style="color: #0ea5e9;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="2" y1="12" x2="22" y2="12"></line>
@@ -1445,11 +1445,11 @@
 
       let trendBadgeHtml = "";
       if (card.trendStatus === "up") {
-        trendBadgeHtml = `<span class="trend-badge up">â†— +${card.trendPct || 0}%</span>`;
+        trendBadgeHtml = `<span class="trend-badge up">↗ +${card.trendPct || 0}%</span>`;
       } else if (card.trendStatus === "down") {
-        trendBadgeHtml = `<span class="trend-badge down">â†˜ ${card.trendPct || 0}%</span>`;
+        trendBadgeHtml = `<span class="trend-badge down">↘ ${card.trendPct || 0}%</span>`;
       } else {
-        trendBadgeHtml = `<span class="trend-badge stable">â†” Stabile</span>`;
+        trendBadgeHtml = `<span class="trend-badge stable">↔ Stabile</span>`;
       }
 
       const urls = getCardUrls(card);
@@ -1472,7 +1472,7 @@
             </div>
           ` : `
             <div class="card-item-art-wrap card-art-placeholder" data-lightbox-id="${card.id}" title="Clicca per visualizzare">
-              <div class="card-art-placeholder-icon">ðŸƒ</div>
+              <div class="card-art-placeholder-icon">🃏</div>
               <span class="card-art-placeholder-text">${escapeHtml(card.code || 'TCG')}</span>
             </div>
           `}
@@ -1482,12 +1482,12 @@
                 <div class="card-item-name" style="cursor: pointer;" data-lightbox-id="${card.id}">
                   ${getGameBadgeHtml(card.game)}<strong>${escapeHtml(card.name)}</strong>
                 </div>
-                ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">ðŸŒ ${escapeHtml(card.englishName)}</span></div>` : ''}
-                <div class="card-cell-sub">${escapeHtml(card.expansion)} â€¢ <strong>${escapeHtml(card.code)}</strong></div>
+                ${card.englishName && card.englishName !== card.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(card.englishName)}</span></div>` : ''}
+                <div class="card-cell-sub">${escapeHtml(card.expansion)} • <strong>${escapeHtml(card.code)}</strong></div>
                 <div class="card-calc-toggle-wrap">
                   <input type="checkbox" class="row-calc-checkbox" data-id="${card.id}" ${isIncluded ? 'checked' : ''} id="grid-calc-${card.id}">
                   <label for="grid-calc-${card.id}" style="cursor:pointer; font-size: 0.72rem; color: ${isIncluded ? '#e5e7eb' : 'var(--text-muted)'};">
-                    ${isIncluded ? 'âœ“ Inclusa nel totale' : 'âœ• Esclusa dal totale'}
+                    ${isIncluded ? '✓ Inclusa nel totale' : '✕ Esclusa dal totale'}
                   </label>
                 </div>
               </div>
@@ -1499,7 +1499,7 @@
               <span class="badge-condition ${getConditionClass(card.condition)}">${escapeHtml(card.condition)}</span>
               <span class="badge-condition"><span style="font-size: 0.95rem; vertical-align: middle;">${getLanguageFlag(card.language)}</span> ${escapeHtml(card.language)}</span>
               ${card.cardType ? `<span class="badge-cardtype">${escapeHtml(card.cardType)}</span>` : ''}
-              ${card.updatedAt ? `<span class="card-grid-timestamp" title="Ultima modifica: ${formatFullDate(card.updatedAt)}">ðŸ•’ ${formatShortDate(card.updatedAt)}</span>` : ''}
+              ${card.updatedAt ? `<span class="card-grid-timestamp" title="Ultima modifica: ${formatFullDate(card.updatedAt)}">🕒 ${formatShortDate(card.updatedAt)}</span>` : ''}
             </div>
 
             <div class="card-item-prices-grid">
@@ -1538,10 +1538,10 @@
           </div>
 
           <div class="actions-cell">
-            <button type="button" class="action-btn-sm btn-ct-single" data-id="${card.id}" title="âš¡ Sincronizza CardTrader Live">
+            <button type="button" class="action-btn-sm btn-ct-single" data-id="${card.id}" title="⚡ Sincronizza CardTrader Live">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
             </button>
-            <button type="button" class="action-btn-sm btn-marketplaces-single" data-id="${card.id}" title="ðŸŒ Sincronizza Mercati & Artwork HD" style="color: #0ea5e9;">
+            <button type="button" class="action-btn-sm btn-marketplaces-single" data-id="${card.id}" title="🌐 Sincronizza Mercati & Artwork HD" style="color: #0ea5e9;">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg>
             </button>
             <a href="${cmUrl}" target="_blank" class="action-btn-sm" title="Vedi '${itaName}' su Cardmarket Italia">
@@ -1661,12 +1661,12 @@
 
     if (topWant) {
       kpiTopWantName.textContent = topWant.name;
-      kpiTopWantMeta.textContent = `${topWant.code} â€¢ ${topWant.rarity}`;
+      kpiTopWantMeta.textContent = `${topWant.code} • ${topWant.rarity}`;
       kpiTopWantVal.textContent = formatEuro(topWant.targetPrice);
     } else {
       kpiTopWantName.textContent = "-";
       kpiTopWantMeta.textContent = "-";
-      kpiTopWantVal.textContent = "â‚¬ 0,00";
+      kpiTopWantVal.textContent = "€ 0,00";
     }
   }
 
@@ -1710,14 +1710,14 @@
         <td class="col-num">${index + 1}</td>
         <td class="col-card">
           <div class="card-cell-name">${getGameBadgeHtml(want.game)}<strong>${escapeHtml(want.name)}</strong></div>
-          ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">ðŸŒ ${escapeHtml(want.englishName)}</span></div>` : ''}
+          ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(want.englishName)}</span></div>` : ''}
           <div class="card-cell-sub">${escapeHtml(want.edition || "")}</div>
           ${want.notes ? `<div class="card-cell-notes">${escapeHtml(want.notes)}</div>` : ""}
-          ${want.updatedAt ? `<div class="card-cell-timestamp" title="Ultima modifica: ${formatFullDate(want.updatedAt)}">ðŸ•’ ${formatShortDate(want.updatedAt)}</div>` : ""}
+          ${want.updatedAt ? `<div class="card-cell-timestamp" title="Ultima modifica: ${formatFullDate(want.updatedAt)}">🕒 ${formatShortDate(want.updatedAt)}</div>` : ""}
         </td>
         <td class="col-rarity">
           <span class="badge-rarity ${getRarityClass(want.rarity)}">${escapeHtml(want.rarity)}</span>
-          <div class="card-cell-sub"><strong>${escapeHtml(want.code)}</strong> â€¢ ${escapeHtml(want.expansion)}</div>
+          <div class="card-cell-sub"><strong>${escapeHtml(want.code)}</strong> • ${escapeHtml(want.expansion)}</div>
         </td>
         <td class="col-cond">
           <span class="badge-condition ${getConditionClass(want.targetCondition)}">${escapeHtml(want.targetCondition || "Near Mint")}</span>
@@ -1784,7 +1784,7 @@
                   <span class="market-dot cm"></span> Cardmarket (Nome EN)
                 </a>
                 <a href="${ctBestUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="${want.blueprintId ? 'Apri direttamente Blueprint #' + want.blueprintId + ' su CardTrader' : 'Cerca su CardTrader'}">
-                  <span class="market-dot ct"></span> CardTrader ${want.blueprintId ? 'âš¡ (Blueprint #' + want.blueprintId + ')' : '(Ricerca)'}
+                  <span class="market-dot ct"></span> CardTrader ${want.blueprintId ? '⚡ (Blueprint #' + want.blueprintId + ')' : '(Ricerca)'}
                 </a>
                 <a href="${ebUrl}" target="_blank" rel="noopener noreferrer" class="market-link-item" title="Cerca su eBay.it Compralo Subito">
                   <span class="market-dot eb"></span> eBay.it (Compralo Subito)
@@ -1843,8 +1843,8 @@
           <div class="card-item-header">
             <div>
               <div class="card-item-name">${getGameBadgeHtml(want.game)}<strong>${escapeHtml(want.name)}</strong></div>
-              ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">ðŸŒ ${escapeHtml(want.englishName)}</span></div>` : ''}
-              <div class="card-cell-sub">${escapeHtml(want.expansion)} â€¢ <strong>${escapeHtml(want.code)}</strong></div>
+              ${want.englishName && want.englishName !== want.name ? `<div class="card-cell-sub" style="color: var(--accent-gold); font-size: 0.75rem;"><span title="Nome ufficiale inglese per ricerche di mercato">🌐 ${escapeHtml(want.englishName)}</span></div>` : ''}
+              <div class="card-cell-sub">${escapeHtml(want.expansion)} • <strong>${escapeHtml(want.code)}</strong></div>
             </div>
             ${statusBadge}
           </div>
@@ -1853,7 +1853,7 @@
             <span class="badge-rarity ${getRarityClass(want.rarity)}">${escapeHtml(want.rarity)}</span>
             <span class="badge-condition ${getConditionClass(want.targetCondition)}">${escapeHtml(want.targetCondition)}</span>
             <span class="badge-condition"><span style="font-size: 0.95rem; vertical-align: middle;">${getLanguageFlag(want.language)}</span> ${escapeHtml(want.language)}</span>
-            ${want.updatedAt ? `<span class="card-grid-timestamp" title="Ultima modifica: ${formatFullDate(want.updatedAt)}">ðŸ•’ ${formatShortDate(want.updatedAt)}</span>` : ''}
+            ${want.updatedAt ? `<span class="card-grid-timestamp" title="Ultima modifica: ${formatFullDate(want.updatedAt)}">🕒 ${formatShortDate(want.updatedAt)}</span>` : ''}
           </div>
 
           <div class="card-item-prices-grid">
@@ -1885,7 +1885,7 @@
 
         <div class="card-item-footer">
           <button type="button" class="btn btn-secondary btn-buy" data-id="${want.id}" style="padding: 5px 10px; font-size: 0.78rem;">
-            âœ… Acquistata
+            ✅ Acquistata
           </button>
 
           <div class="actions-cell">
@@ -2336,7 +2336,7 @@
         const filteredList = getFilteredCards();
         filteredList.forEach(c => excludedCardIds.delete(c.id));
         saveExcludedCards();
-        showToast("âœ… Tutte le carte sono state incluse nel calcolo del totale!");
+        showToast("✅ Tutte le carte sono state incluse nel calcolo del totale!");
         render();
       });
     }
@@ -2346,7 +2346,7 @@
         const filteredList = getFilteredCards();
         filteredList.forEach(c => excludedCardIds.add(c.id));
         saveExcludedCards();
-        showToast("âŒ Tutte le carte sono state escluse dal calcolo!");
+        showToast("❌ Tutte le carte sono state escluse dal calcolo!");
         render();
       });
     }
@@ -2370,7 +2370,7 @@
       btnToggleChart.addEventListener("click", () => {
         const isCollapsed = chartCardBody.classList.toggle("collapsed");
         if (chartToggleLabel) {
-          chartToggleLabel.textContent = isCollapsed ? "Mostra Grafico â–¾" : "Nascondi Grafico â–´";
+          chartToggleLabel.textContent = isCollapsed ? "Mostra Grafico ▾" : "Nascondi Grafico ▴";
         }
         btnToggleChart.setAttribute("aria-expanded", String(!isCollapsed));
       });
@@ -2456,7 +2456,7 @@
 
       if (mpProgressFill) mpProgressFill.style.width = "100%";
       if (mpProgressPctText) mpProgressPctText.textContent = "100%";
-      if (mpProgressStatusText) mpProgressStatusText.textContent = `âœ… Sincronizzazione completata! ${result.cards.length} carte arricchite con immagini e quotazioni.`;
+      if (mpProgressStatusText) mpProgressStatusText.textContent = `✅ Sincronizzazione completata! ${result.cards.length} carte arricchite con immagini e quotazioni.`;
       if (btnCloseMpDone) btnCloseMpDone.style.display = "inline-flex";
 
       // Render logs
@@ -2469,7 +2469,7 @@
                 <span class="ct-log-diff" style="color: var(--trend-down);">Errore: ${escapeHtml(log.error)}</span>
               </div>`;
           }
-          const sources = (log.sources || []).join(" â€¢ ") || "Dati aggiornati";
+          const sources = (log.sources || []).join(" • ") || "Dati aggiornati";
           return `
             <div class="ct-log-row ok">
               <span class="ct-log-name">${escapeHtml(log.cardName)} (${escapeHtml(log.code)})</span>
@@ -2488,9 +2488,9 @@
       } else {
         await checkJustTcgQuota();
       }
-      showToast(`ðŸŽ‰ ${result.cards.length} carte sincronizzate con successo con YGOPRODeck e Mercati!`);
+      showToast(`🎉 ${result.cards.length} carte sincronizzate con successo con YGOPRODeck e Mercati!`);
     } catch(err) {
-      if (mpProgressStatusText) mpProgressStatusText.textContent = `âŒ Errore: ${err.message}`;
+      if (mpProgressStatusText) mpProgressStatusText.textContent = `❌ Errore: ${err.message}`;
       if (mpLogsBox) {
         mpLogsBox.innerHTML = `<div class="ct-log-row error"><span class="ct-log-name">Errore durante la sincronizzazione: ${escapeHtml(err.message)}</span></div>`;
       }
@@ -2502,7 +2502,7 @@
     const card = cards.find(c => c.id === id);
     if (!card) return;
 
-    showToast(`ðŸŒ Sincronizzazione "${card.name}" con YGOPRODeck & Mercati...`);
+    showToast(`🌐 Sincronizzazione "${card.name}" con YGOPRODeck & Mercati...`);
     try {
       const response = await fetch("/api/marketplaces/sync-single", {
         method: "POST",
@@ -2525,11 +2525,11 @@
         } else {
           await checkJustTcgQuota();
         }
-        showToast(`âœ… "${card.name}" aggiornata con successo!`);
+        showToast(`✅ "${card.name}" aggiornata con successo!`);
       }
     } catch(err) {
       console.error("Errore sync carta:", err);
-      showToast(`âŒ Errore sincronizzazione: ${err.message}`, "error");
+      showToast(`❌ Errore sincronizzazione: ${err.message}`, "error");
     }
   }
 
@@ -2546,7 +2546,7 @@
     }
     if (lightboxName) lightboxName.textContent = card.name;
     if (lightboxSub) {
-      lightboxSub.innerHTML = `${escapeHtml(card.code || '')} â€¢ ${escapeHtml(card.expansion || '')} â€¢ ${getLanguageFlag(card.language)} ${escapeHtml(card.language || '')}`;
+      lightboxSub.innerHTML = `${escapeHtml(card.code || '')} • ${escapeHtml(card.expansion || '')} • ${getLanguageFlag(card.language)} ${escapeHtml(card.language || '')}`;
     }
     if (lightboxTags) {
       lightboxTags.innerHTML = `
@@ -2558,7 +2558,7 @@
     }
     const lbTs = document.getElementById("lightbox-timestamp");
     if (lbTs) {
-      lbTs.innerHTML = `ðŸ•’ <strong>Ultima Modifica:</strong> ${formatFullDate(card.updatedAt)}`;
+      lbTs.innerHTML = `🕒 <strong>Ultima Modifica:</strong> ${formatFullDate(card.updatedAt)}`;
     }
     if (lightboxDesc) {
       lightboxDesc.textContent = card.desc || "Dettagli effetto disponibili sincronizzando la carta con il database YGOPRODeck.";
@@ -2585,16 +2585,16 @@
       const urls = getCardUrls(card);
       lightboxLinksRow.innerHTML = `
         <a href="${urls.cmBestUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex:1; font-size:0.8rem;" title="Cerca su Cardmarket Italia">
-          <span style="color:#0284c7;">â—</span> Cardmarket
+          <span style="color:#0284c7;">●</span> Cardmarket
         </a>
         <a href="${urls.ctBestUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex:1; font-size:0.8rem;" title="Cerca su CardTrader">
-          <span style="color:#f97316;">â—</span> CardTrader
+          <span style="color:#f97316;">●</span> CardTrader
         </a>
         <a href="${urls.ebUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex:1; font-size:0.8rem;" title="Cerca su eBay.it Compralo Subito">
-          <span style="color:#eab308;">â—</span> eBay.it
+          <span style="color:#eab308;">●</span> eBay.it
         </a>
         <a href="${urls.ygoUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex:1; font-size:0.8rem;" title="Vedi scheda completa e tutti i set su YGOPRODeck">
-          <span style="color:#10b981;">ðŸƒ</span> YGOPRODeck
+          <span style="color:#10b981;">🃏</span> YGOPRODeck
         </a>
       `;
     }
@@ -2638,12 +2638,12 @@
         pill.classList.remove("warning", "exceeded");
         if (usage.isExceeded) {
           pill.classList.add("exceeded");
-          pill.title = `âš ï¸ Limite mensile JustTCG raggiunto (${usage.count}/${usage.monthlyLimit}). Reset il ${usage.nextResetDate}. Clicca per gestire le API.`;
+          pill.title = `⚠️ Limite mensile JustTCG raggiunto (${usage.count}/${usage.monthlyLimit}). Reset il ${usage.nextResetDate}. Clicca per gestire le API.`;
         } else if (usage.isWarning) {
           pill.classList.add("warning");
-          pill.title = `âš ï¸ Superata la soglia di 500 chiamate JustTCG. Rimaste: ${usage.remaining} (Reset il ${usage.nextResetDate}). Clicca per gestire le API.`;
+          pill.title = `⚠️ Superata la soglia di 500 chiamate JustTCG. Rimaste: ${usage.remaining} (Reset il ${usage.nextResetDate}). Clicca per gestire le API.`;
         } else {
-          pill.title = `ðŸŒ JustTCG API attiva: ${usage.count} usate questo mese (${usage.remaining} rimaste). Reset il ${usage.nextResetDate}. Clicca per gestire le API.`;
+          pill.title = `🌐 JustTCG API attiva: ${usage.count} usate questo mese (${usage.remaining} rimaste). Reset il ${usage.nextResetDate}. Clicca per gestire le API.`;
         }
       } else {
         pill.style.display = "none";
@@ -2686,13 +2686,13 @@
         warningBanner.style.background = "rgba(239, 68, 68, 0.15)";
         warningBanner.style.borderColor = "rgba(239, 68, 68, 0.3)";
         warningBanner.style.color = "#f87171";
-        warningBanner.innerHTML = `â›” <strong>Limite mensile di 1.000 chiamate raggiunto!</strong> Le interrogazioni automatiche a JustTCG sono sospese fino al <strong>${usage.nextResetDate}</strong> per proteggere il tuo account.`;
+        warningBanner.innerHTML = `⛔ <strong>Limite mensile di 1.000 chiamate raggiunto!</strong> Le interrogazioni automatiche a JustTCG sono sospese fino al <strong>${usage.nextResetDate}</strong> per proteggere il tuo account.`;
       } else if (usage.isWarning) {
         warningBanner.style.display = "block";
         warningBanner.style.background = "rgba(245, 158, 11, 0.15)";
         warningBanner.style.borderColor = "rgba(245, 158, 11, 0.3)";
         warningBanner.style.color = "#fbbf24";
-        warningBanner.innerHTML = `âš ï¸ <strong>Superata la soglia di 500 chiamate (${usage.count}/1.000).</strong> Rimangono <strong>${usage.remaining} richieste</strong> disponibili fino al <strong>${usage.nextResetDate}</strong>.`;
+        warningBanner.innerHTML = `⚠️ <strong>Superata la soglia di 500 chiamate (${usage.count}/1.000).</strong> Rimangono <strong>${usage.remaining} richieste</strong> disponibili fino al <strong>${usage.nextResetDate}</strong>.`;
       } else {
         warningBanner.style.display = "none";
       }
@@ -2744,7 +2744,7 @@
       });
       const data = await res.json();
       if (data.success) {
-        showToast("âœ… Impostazioni API salvate con successo!");
+        showToast("✅ Impostazioni API salvate con successo!");
         closeApiConfigModal();
         await checkJustTcgQuota();
       } else {
@@ -2789,7 +2789,7 @@
 
       ctProgressFill.style.width = "100%";
       ctProgressPctText.textContent = "100%";
-      ctProgressStatusText.textContent = `âœ… Sincronizzazione completata! ${result.cards.length} carte aggiornate e salvate nel CSV.`;
+      ctProgressStatusText.textContent = `✅ Sincronizzazione completata! ${result.cards.length} carte aggiornate e salvate nel CSV.`;
       btnCloseCtDone.style.display = "inline-flex";
 
       // Render logs
@@ -2803,11 +2803,11 @@
             row.innerHTML = `
               <div>
                 <div class="ct-log-card-name">${escapeHtml(log.cardName)} <span style="font-size:0.75rem; color:var(--text-muted);">(${escapeHtml(log.code)})</span></div>
-                <div style="font-size:0.75rem; color:var(--text-secondary);">${escapeHtml(log.expansion || "")} â€¢ <span style="color:#38bdf8; font-weight:500;">${escapeHtml(log.filterLevel || "Filtro")}</span> (${log.matchedListings !== undefined ? log.matchedListings : log.listings} copie)</div>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">${escapeHtml(log.expansion || "")} • <span style="color:#38bdf8; font-weight:500;">${escapeHtml(log.filterLevel || "Filtro")}</span> (${log.matchedListings !== undefined ? log.matchedListings : log.listings} copie)</div>
               </div>
               <div class="ct-log-prices">
                 <span class="ct-price-old">Min ${formatEuro(log.oldCtMin)} / Trend ${formatEuro(log.oldCtTrend)}</span>
-                âž”
+                ➔
                 <span class="ct-price-new">Min ${formatEuro(log.newCtMin)} / Trend ${formatEuro(log.newCtTrend)}</span>
               </div>
             `;
@@ -2831,10 +2831,10 @@
       savePortfolioData();
       populateFilterDropdowns();
       render();
-      showToast(`âš¡ ${result.cards.length} carte sincronizzate con successo da CardTrader e salvate nel CSV!`);
+      showToast(`⚡ ${result.cards.length} carte sincronizzate con successo da CardTrader e salvate nel CSV!`);
     } catch (err) {
       console.error("Errore sync CardTrader:", err);
-      ctProgressStatusText.textContent = `âŒ Errore durante la sincronizzazione: ${err.message}`;
+      ctProgressStatusText.textContent = `❌ Errore durante la sincronizzazione: ${err.message}`;
       ctProgressFill.style.width = "100%";
       ctProgressFill.style.background = "var(--trend-down)";
       btnCloseCtDone.style.display = "inline-flex";
@@ -2846,7 +2846,7 @@
     const card = cards.find(c => c.id === cardId);
     if (!card) return;
 
-    showToast(`âš¡ Sincronizzazione CardTrader per "${card.name}"...`);
+    showToast(`⚡ Sincronizzazione CardTrader per "${card.name}"...`);
 
     try {
       const response = await fetch("/api/cardtrader/sync-single", {
@@ -2869,7 +2869,7 @@
         await syncPortfolioWithDiskCsv(true);
         render();
 
-        showToast(`âš¡ "${card.name}" aggiornata: Min ${formatEuro(resPrice.minPrice)} | Trend ${formatEuro(resPrice.trendPrice)} (${resPrice.listingsCount} inserzioni)`);
+        showToast(`⚡ "${card.name}" aggiornata: Min ${formatEuro(resPrice.minPrice)} | Trend ${formatEuro(resPrice.trendPrice)} (${resPrice.listingsCount} inserzioni)`);
       } else {
         showToast(`Info CardTrader per "${card.name}": ${resPrice.reason || resPrice.note || 'Nessuna inserzione'}`);
       }
@@ -2894,7 +2894,7 @@
     if (!rawInput) {
       if (statusMsgEl) {
         statusMsgEl.className = "autofill-status-msg error";
-        statusMsgEl.textContent = "âš ï¸ Incolla un link CardTrader o un ID Blueprint numerico prima di procedere.";
+        statusMsgEl.textContent = "⚠️ Incolla un link CardTrader o un ID Blueprint numerico prima di procedere.";
         statusMsgEl.style.display = "flex";
       }
       return;
@@ -2905,10 +2905,10 @@
 
     // Set loading state
     if (btnEl) btnEl.disabled = true;
-    if (btnTextEl) btnTextEl.textContent = "â³ Analisi Blueprint & YGOPRODeck...";
+    if (btnTextEl) btnTextEl.textContent = "⏳ Analisi Blueprint & YGOPRODeck...";
     if (statusMsgEl) {
       statusMsgEl.className = "autofill-status-msg loading";
-      statusMsgEl.innerHTML = "ðŸ” Interrogazione CardTrader API & download artwork YGOPRODeck in corso...";
+      statusMsgEl.innerHTML = "🔍 Interrogazione CardTrader API & download artwork YGOPRODeck in corso...";
       statusMsgEl.style.display = "flex";
     }
 
@@ -2937,7 +2937,7 @@
         document.getElementById("want-form-set").value = data.expansion || "";
         document.getElementById("want-form-code").value = data.code || "";
         document.getElementById("want-form-rarity").value = data.rarity || "";
-        document.getElementById("want-form-edition").value = data.edition || "1Âª Edizione";
+        document.getElementById("want-form-edition").value = data.edition || "1ª Edizione";
         document.getElementById("want-form-lang").value = data.language || "Italiano (ITA)";
         document.getElementById("want-form-condition").value = data.condition || "Near Mint";
 
@@ -2977,7 +2977,7 @@
         document.getElementById("form-set").value = data.expansion || "";
         document.getElementById("form-code").value = data.code || "";
         document.getElementById("form-rarity").value = data.rarity || "";
-        document.getElementById("form-edition").value = data.edition || "1Âª Edizione";
+        document.getElementById("form-edition").value = data.edition || "1ª Edizione";
         document.getElementById("form-lang").value = data.language || "Italiano (ITA)";
         document.getElementById("form-condition").value = data.condition || "Near Mint";
         document.getElementById("form-notes").value = data.notes || `Blueprint CT: #${data.blueprintId}`;
@@ -3010,20 +3010,20 @@
 
       if (statusMsgEl) {
         statusMsgEl.className = "autofill-status-msg success";
-        statusMsgEl.innerHTML = `âœ… <strong>"${escapeHtml(data.englishName)}"</strong> [${(data.game || 'TCG').toUpperCase()}] caricata! Set: ${escapeHtml(data.expansion)} (${escapeHtml(data.code)}) â€¢ ${escapeHtml(data.rarity)} â€¢ CT Min: â‚¬${data.ctMin ? data.ctMin.toFixed(2) : '0.00'}`;
+        statusMsgEl.innerHTML = `✅ <strong>"${escapeHtml(data.englishName)}"</strong> [${(data.game || 'TCG').toUpperCase()}] caricata! Set: ${escapeHtml(data.expansion)} (${escapeHtml(data.code)}) • ${escapeHtml(data.rarity)} • CT Min: €${data.ctMin ? data.ctMin.toFixed(2) : '0.00'}`;
         statusMsgEl.style.display = "flex";
       }
 
-      showToast(`âœ¨ Dati e quotazioni caricati con successo da CardTrader & Database TCG!`);
+      showToast(`✨ Dati e quotazioni caricati con successo da CardTrader & Database TCG!`);
     } catch(err) {
       if (statusMsgEl) {
         statusMsgEl.className = "autofill-status-msg error";
-        statusMsgEl.textContent = `âŒ Errore auto-fill: ${err.message}`;
+        statusMsgEl.textContent = `❌ Errore auto-fill: ${err.message}`;
         statusMsgEl.style.display = "flex";
       }
     } finally {
       if (btnEl) btnEl.disabled = false;
-      if (btnTextEl) btnTextEl.textContent = "âš¡ Compila Dati";
+      if (btnTextEl) btnTextEl.textContent = "⚡ Compila Dati";
     }
   }
 
@@ -3045,7 +3045,7 @@
 
       if (tsEl) {
         tsEl.style.display = "flex";
-        tsEl.innerHTML = `ðŸ•’ <strong>Ultima modifica:</strong> ${formatFullDate(card.updatedAt)}`;
+        tsEl.innerHTML = `🕒 <strong>Ultima modifica:</strong> ${formatFullDate(card.updatedAt)}`;
       }
 
       document.getElementById("form-game").value = card.game || "yugioh";
@@ -3245,7 +3245,7 @@
 
       if (tsEl) {
         tsEl.style.display = "flex";
-        tsEl.innerHTML = `ðŸ•’ <strong>Ultima modifica:</strong> ${formatFullDate(want.updatedAt)}`;
+        tsEl.innerHTML = `🕒 <strong>Ultima modifica:</strong> ${formatFullDate(want.updatedAt)}`;
       }
 
       document.getElementById("want-form-game").value = want.game || "yugioh";
@@ -3420,7 +3420,7 @@
     const want = wants.find(w => w.id === wantId);
     if (!want) return;
 
-    if (confirm(`ðŸŽ‰ Complimenti per l'acquisto! Vuoi spostare "${want.name}" (${want.code}) direttamente nel tuo Portfolio delle carte possedute e salvarla nel file?`)) {
+    if (confirm(`🎉 Complimenti per l'acquisto! Vuoi spostare "${want.name}" (${want.code}) direttamente nel tuo Portfolio delle carte possedute e salvarla nel file?`)) {
       const maxId = cards.reduce((max, c) => Math.max(max, c.id || 0), 0);
       const maxNum = cards.reduce((max, c) => Math.max(max, c.num || 0), 0);
 
@@ -3463,7 +3463,7 @@
       populateWantsFilterDropdowns();
       render();
 
-      showToast(`ðŸŽ‰ "${want.name}" aggiunta al Portfolio e al file CSV!`);
+      showToast(`🎉 "${want.name}" aggiunta al Portfolio e al file CSV!`);
     }
   }
 
@@ -3475,10 +3475,10 @@
 
     if (isWants) {
       const headers = [
-        "ID", "Nome Carta", "Espansione", "Codice Carta", "RaritÃ ", "Edizione Desiderata",
-        "Lingua", "Condizione Minima", "Prezzo Target (â‚¬)", "Cardmarket Min (â‚¬)", "Cardmarket Trend (â‚¬)",
-        "CardTrader Min (â‚¬)", "CardTrader Trend (â‚¬)", "eBay Min (â‚¬)", "eBay Trend (â‚¬)",
-        "Miglior Prezzo (â‚¬)", "Miglior Bacino", "Note d'Acquisto"
+        "ID", "Nome Carta", "Espansione", "Codice Carta", "Rarità", "Edizione Desiderata",
+        "Lingua", "Condizione Minima", "Prezzo Target (€)", "Cardmarket Min (€)", "Cardmarket Trend (€)",
+        "CardTrader Min (€)", "CardTrader Trend (€)", "eBay Min (€)", "eBay Trend (€)",
+        "Miglior Prezzo (€)", "Miglior Bacino", "Note d'Acquisto"
       ];
 
       const rows = wants.map((w, i) => {
@@ -3509,9 +3509,9 @@
       downloadCsvFile(csvContent, `Lista_Wants_YuGiOh_${new Date().toISOString().slice(0, 10)}.csv`);
     } else {
       const headers = [
-        "NÂ°", "Nome Carta", "Espansione", "Codice Carta", "RaritÃ ", "Edizione / Artwork",
-        "Lingua", "Stato / Condizione", "Cardmarket Min (â‚¬)", "Cardmarket Trend (â‚¬)",
-        "CardTrader Min (â‚¬)", "CardTrader Trend (â‚¬)", "Media Min (â‚¬)", "Media Trend (â‚¬)", "Note"
+        "N°", "Nome Carta", "Espansione", "Codice Carta", "Rarità", "Edizione / Artwork",
+        "Lingua", "Stato / Condizione", "Cardmarket Min (€)", "Cardmarket Trend (€)",
+        "CardTrader Min (€)", "CardTrader Trend (€)", "Media Min (€)", "Media Trend (€)", "Note"
       ];
 
       let totalCmMin = 0, totalCmTrend = 0, totalCtMin = 0, totalCtTrend = 0, totalMedMin = 0, totalMedTrend = 0;
@@ -3597,7 +3597,7 @@
     try {
       const lines = text.split(/\r?\n/).filter(line => line.trim() !== "");
       if (lines.length < 2) {
-        alert("Il file CSV selezionato Ã¨ vuoto o non contiene dati validi.");
+        alert("Il file CSV selezionato è vuoto o non contiene dati validi.");
         return;
       }
 
@@ -3673,7 +3673,7 @@
           showToast(`Portfolio aggiornato con ${cards.length} carte!`);
         }
       } else {
-        alert("Non Ã¨ stato possibile estrarre carte valide dal file CSV.");
+        alert("Non è stato possibile estrarre carte valide dal file CSV.");
       }
     } catch (err) {
       console.error("Errore importazione CSV:", err);
@@ -3769,10 +3769,10 @@
         const pwdInput = document.getElementById("auth-input-password");
         if (pwdInput.type === "password") {
           pwdInput.type = "text";
-          btnTogglePwd.textContent = "ðŸ™ˆ";
+          btnTogglePwd.textContent = "🙈";
         } else {
           pwdInput.type = "password";
-          btnTogglePwd.textContent = "ðŸ‘ï¸";
+          btnTogglePwd.textContent = "👁️";
         }
       });
     }
@@ -3796,7 +3796,7 @@
         localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, tokenParam.trim());
         const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
         window.history.replaceState({ path: cleanUrl }, "", cleanUrl);
-        showToast("ðŸ”‘ Access Token memorizzato sul dispositivo!");
+        showToast("🔑 Access Token memorizzato sul dispositivo!");
       }
     } catch(e) {}
 
@@ -3828,7 +3828,7 @@
             localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, data.token);
             document.getElementById("auth-modal").style.display = "none";
             document.getElementById("auth-modal").setAttribute("aria-hidden", "true");
-            showToast("ðŸ”“ Accesso 2FA effettuato con successo!");
+            showToast("🔓 Accesso 2FA effettuato con successo!");
             await checkServerConnection();
             await syncFromServer();
             render();
@@ -3841,7 +3841,7 @@
           if (otpInput && otpInput.value) otpInput.value = "";
         } finally {
           btnSubmit.disabled = false;
-          btnSubmit.innerHTML = "<span>ðŸ”’ Sblocca CardVault</span>";
+          btnSubmit.innerHTML = "<span>🔒 Sblocca CardVault</span>";
         }
       });
     }
@@ -3871,7 +3871,7 @@
             localStorage.setItem(STORAGE_KEY_AUTH_TOKEN, data.token);
             document.getElementById("auth-modal").style.display = "none";
             document.getElementById("auth-modal").setAttribute("aria-hidden", "true");
-            showToast("ðŸ›¡ï¸ Protezione 2FA configurata ed attivata con successo!");
+            showToast("🛡️ Protezione 2FA configurata ed attivata con successo!");
             await checkServerConnection();
             render();
           } else {
@@ -3918,7 +3918,7 @@
     if (btnLockSession) {
       btnLockSession.addEventListener("click", () => {
         localStorage.removeItem(STORAGE_KEY_AUTH_TOKEN);
-        showToast("ðŸ”’ Sessione bloccata");
+        showToast("🔒 Sessione bloccata");
         check2FAStatus();
       });
     }
@@ -3950,6 +3950,5 @@
     startApplication();
   }
 })();
-
 
 
