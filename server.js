@@ -1433,6 +1433,80 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // API: 1-Click Auto-Fill da CardTrader Blueprint URL
+  if (req.url === '/api/cardtrader/lookup-blueprint' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body);
+        const urlStr = (payload.url || '').trim();
+        
+        let blueprintId = null;
+        const match = urlStr.match(/(?:cards\/|^)(\d+)/);
+        if (match) blueprintId = parseInt(match[1], 10);
+        
+        if (!blueprintId) throw new Error("ID Blueprint non valido o non trovato nell'URL.");
+        
+        const bpData = await fetchCardTrader('/api/v2/blueprints/' + blueprintId);
+        if (!bpData || !bpData.id) throw new Error("Blueprint non trovato su CardTrader");
+        
+        const engName = bpData.name;
+        const rarity = bpData.version;
+        const expId = bpData.expansion_id;
+        
+        let expansionName = "Sconosciuta";
+        let game = "yugioh";
+        if (bpData.game_id === 4) game = "yugioh";
+        else if (bpData.game_id === 5) game = "pokemon";
+        else if (bpData.game_id === 22) game = "riftbound";
+        else if (bpData.game_id === 1) game = "magic";
+
+        if (game === "yugioh") {
+          const expansions = await getYuGiOhExpansions();
+          const exp = expansions.find(e => e.id === expId);
+          if (exp) expansionName = exp.name;
+        }
+
+        let ygoData = { ygoprodeckUrl: "", imageUrl: "", imageUrlLarge: "", imageUrlCropped: "", code: "" };
+        if (game === "yugioh") {
+            const ygoRes = await fetchYgoProDeck({ englishName: engName, name: engName, expansion: expansionName });
+            if (ygoRes.success) {
+                ygoData.ygoprodeckUrl = ygoRes.ygoprodeckUrl || "";
+                ygoData.imageUrl = ygoRes.imageUrl || "";
+                ygoData.imageUrlLarge = ygoRes.imageUrlLarge || "";
+                ygoData.imageUrlCropped = ygoRes.imageUrlCropped || "";
+            }
+        }
+        
+        const baseUrl = 'https://www.cardtrader.com/it/cards/';
+        const finalCtUrl = bpData.slug ? (baseUrl + bpData.slug) : (baseUrl + blueprintId);
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          blueprintId: blueprintId,
+          cardTraderUrl: finalCtUrl,
+          name: engName,
+          englishName: engName,
+          expansion: expansionName,
+          rarity: rarity,
+          code: ygoData.code,
+          game: game,
+          ygoprodeckUrl: ygoData.ygoprodeckUrl,
+          imageUrl: ygoData.imageUrl,
+          imageUrlLarge: ygoData.imageUrlLarge,
+          imageUrlCropped: ygoData.imageUrlCropped
+        }));
+      } catch (err) {
+        console.error('[CardTrader Lookup] Errore:', err);
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // API: Sync a Single Card with CardTrader
   if (req.url === '/api/cardtrader/sync-single' && req.method === 'POST') {
     let body = '';
