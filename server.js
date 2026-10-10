@@ -398,48 +398,59 @@ function extractFilteredCardTraderPrices(items, card) {
   const targetConds = getTargetConditions(card.condition);
   const is1st = (card.edition || '').toLowerCase().includes('1');
 
+  const checkLang = (ph, langCode) => {
+      return (ph.yugioh_language === langCode || ph.mtg_language === langCode || ph.pokemon_language === langCode || ph.language === langCode);
+  };
+
   let matched = [];
   let filterLevel = '';
 
-  // Level 1: Lang + Condition + 1st Edition
-  if (targetLang && is1st) {
-    matched = items.filter(p => {
-      const ph = p.properties_hash || {};
-      const matchLang = (ph.yugioh_language === targetLang || ph.language === targetLang);
-      const matchCond = targetConds.includes(ph.condition);
-      const match1st = ph.first_edition === true;
-      return matchLang && matchCond && match1st;
-    });
-    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} • ${card.condition || 'NM'} • 1ª Edizione`;
-  }
+  const tryMatch = (lang) => {
+    // Level 1: Lang + Condition + 1st Edition
+    if (lang && is1st) {
+      matched = items.filter(p => {
+        const ph = p.properties_hash || {};
+        return checkLang(ph, lang) && targetConds.includes(ph.condition) && ph.first_edition === true;
+      });
+      if (matched.length > 0) { filterLevel = lang.toUpperCase() + ' - ' + (card.condition || 'NM') + ' - 1 Edizione'; return true; }
+    }
 
-  // Level 2: Lang + Condition
-  if (matched.length === 0 && targetLang) {
-    matched = items.filter(p => {
-      const ph = p.properties_hash || {};
-      const matchLang = (ph.yugioh_language === targetLang || ph.language === targetLang);
-      const matchCond = targetConds.includes(ph.condition);
-      return matchLang && matchCond;
-    });
-    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} • ${card.condition || 'NM'}`;
-  }
+    // Level 2: Lang + Condition
+    if (lang) {
+      matched = items.filter(p => {
+        const ph = p.properties_hash || {};
+        return checkLang(ph, lang) && targetConds.includes(ph.condition);
+      });
+      if (matched.length > 0) { filterLevel = lang.toUpperCase() + ' - ' + (card.condition || 'NM'); return true; }
+    }
 
-  // Level 3: Lang Only
-  if (matched.length === 0 && targetLang) {
-    matched = items.filter(p => {
-      const ph = p.properties_hash || {};
-      return (ph.yugioh_language === targetLang || ph.language === targetLang);
-    });
-    if (matched.length > 0) filterLevel = `${targetLang.toUpperCase()} (Tutte Condizioni)`;
+    // Level 3: Lang Only
+    if (lang) {
+      matched = items.filter(p => {
+        const ph = p.properties_hash || {};
+        return checkLang(ph, lang);
+      });
+      if (matched.length > 0) { filterLevel = lang.toUpperCase() + ' (Tutte Condizioni)'; return true; }
+    }
+    return false;
+  };
+
+  let found = tryMatch(targetLang);
+  
+  if (!found && targetLang !== 'en') {
+      found = tryMatch('en');
+      if (found) {
+          filterLevel = '⚠️ Stima su EN: ' + filterLevel;
+      }
   }
 
   // Level 4: Global Condition
-  if (matched.length === 0) {
+  if (!found) {
     matched = items.filter(p => {
       const ph = p.properties_hash || {};
       return targetConds.includes(ph.condition);
     });
-    if (matched.length > 0) filterLevel = `Globale • ${card.condition || 'NM'}`;
+    if (matched.length > 0) { filterLevel = 'Globale - ' + (card.condition || 'NM'); }
   }
 
   // Level 5: Global All
@@ -1891,3 +1902,4 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🔐 Sicurezza 2FA: ${authConfig.enabled ? 'Attiva' : 'In attesa di configurazione iniziale'}`);
   console.log('====================================================');
 });
+
