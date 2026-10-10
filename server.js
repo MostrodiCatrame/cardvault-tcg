@@ -1017,9 +1017,18 @@ function fetchJustTcgPrice(card, apiKey) {
     const cardCode = (card.code || '').toUpperCase().trim();
     const cardName = card.englishName || card.name;
     const cleanName = cleanCardNameForYgo(cardName);
-    const url = `https://api.justtcg.com/v1/cards?q=${encodeURIComponent(cleanName)}&game=yugioh`;
+    
+    let gameParam = 'yugioh';
+    if (card.game) {
+       if (card.game === 'magic') gameParam = 'mtg';
+       else if (card.game === 'pokemon') gameParam = 'pokemon';
+       else if (card.game === 'riftbound') gameParam = 'riftbound';
+       else gameParam = card.game;
+    }
+    
+    const url = `https://api.justtcg.com/v1/cards?q=${encodeURIComponent(cleanName)}&game=${gameParam}`;
 
-    console.log(`[JustTCG API Call #${usage.count + 1}] Ricerca: "${cleanName}" (${cardCode})`);
+    console.log(`[JustTCG API Call #${usage.count + 1}] Ricerca: "${cleanName}" (${cardCode}) per gioco ${gameParam}`);
 
     const req = https.get(url, {
       headers: {
@@ -1089,21 +1098,36 @@ function fetchJustTcgPrice(card, apiKey) {
             }
 
             if (match && match.variants && match.variants.length > 0) {
-              // Isola la variante Near Mint / Lightly Played
+                            // Mapping condizioni CardVault -> JustTCG (TCGPlayer)
+              const targetCondName = (card.condition || 'Near Mint').toLowerCase();
+              let targetTcgConds = [];
+              if (targetCondName.includes('near') || targetCondName === 'nm') targetTcgConds = ['Near Mint'];
+              else if (targetCondName.includes('slight') || targetCondName.includes('light') || targetCondName.includes('lp') || targetCondName.includes('sp')) targetTcgConds = ['Lightly Played', 'Near Mint'];
+              else if (targetCondName.includes('moderat') || targetCondName.includes('mp')) targetTcgConds = ['Moderately Played', 'Lightly Played', 'Near Mint'];
+              else if (targetCondName.includes('play') || targetCondName.includes('pl')) targetTcgConds = ['Heavily Played', 'Moderately Played', 'Lightly Played', 'Near Mint'];
+              else if (targetCondName.includes('poor') || targetCondName.includes('damag')) targetTcgConds = ['Damaged', 'Heavily Played'];
+              else targetTcgConds = ['Near Mint'];
+
               const is1st = (card.edition || '').toLowerCase().includes('1');
               let nmVar = null;
 
-              if (is1st) {
-                nmVar = match.variants.find(v => (v.condition === 'Near Mint' || v.condition === 'Lightly Played') && (v.printing === '1st Edition' || v.id.includes('1st-edition')));
+              // Cerca combinazione Esatta Condizione + Edizione
+              for (const tc of targetTcgConds) {
+                 nmVar = match.variants.find(v => v.condition === tc && (is1st ? (v.printing === '1st Edition' || v.id.includes('1st-edition')) : true));
+                 if (nmVar) break;
               }
-              if (!nmVar) {
-                nmVar = match.variants.find(v => v.condition === 'Near Mint');
+              
+              // Fallback senza vincolo di Edizione
+              if (!nmVar && is1st) { 
+                 for (const tc of targetTcgConds) {
+                    nmVar = match.variants.find(v => v.condition === tc);
+                    if (nmVar) break;
+                 }
               }
-              if (!nmVar) {
-                nmVar = match.variants.find(v => v.condition === 'Lightly Played');
-              }
+              
+              // Fallback ultima spiaggia
               if (!nmVar && match.variants.length > 0) {
-                nmVar = match.variants[0];
+                 nmVar = match.variants[0];
               }
 
               const priceUsd = Number(nmVar.price) || Number(nmVar.avgPrice) || 0;
@@ -1446,7 +1470,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // API: 1-Click Auto-Fill da CardTrader Blueprint URL
+    // API: 1-Click Auto-Fill da CardTrader Blueprint URL o Cardmarket URL
   if (req.url === '/api/cardtrader/lookup-blueprint' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -1455,6 +1479,55 @@ const server = http.createServer(async (req, res) => {
         const payload = JSON.parse(body);
         const urlStr = (payload.url || '').trim();
         
+        // --- INIZIO: INTERPRETAZIONE URL CARDMARKET ---
+        if (urlStr.includes('cardmarket.com')) {
+          const cmMatch = urlStr.match(/cardmarket\.com\/[a-z]{2}\/([^\/]+)\/Products\/Singles\/([^\/]+)\/([^?]+)/i);
+          if (!cmMatch) throw new Error("URL Cardmarket non supportato o formato non valido.");
+          const cmGame = cmMatch[1].toLowerCase();
+          const cmExp = cmMatch[2].replace(/-/g, ' ');
+          const cmName = cmMatch[3].replace(/-/g, ' ');
+          
+          let gameMapped = "yugioh";
+          if (cmGame.includes('magic')) gameMapped = "magic";
+          if (cmGame.includes('pokemon')) gameMapped = "pokemon";
+
+          let langCode = payload.language || "Italiano (ITA)";
+          const langMatch = urlStr.match(/language=(\d+)/);
+          if (langMatch) {
+             const lMap = {'1': 'Inglese (EN)', '2': 'Francese (FR)', '3': 'Tedesco (DE)', '4': 'Spagnolo (ES)', '5': 'Italiano (ITA)', '6': 'Giapponese (JP)'};
+             if (lMap[langMatch[1]]) langCode = lMap[langMatch[1]];
+          }
+
+          let ygoData = { code: "", imageUrl: "", ygoprodeckUrl: "" };
+          if (gameMapped === "yugioh") {
+              const ygoRes = await fetchYgoProDeck({ englishName: cmName, name: cmName, expansion: cmExp });
+              if (ygoRes.success) {
+                  ygoData.ygoprodeckUrl = ygoRes.ygoprodeckUrl || "";
+                  ygoData.imageUrl = ygoRes.imageUrl || "";
+                  ygoData.code = ygoRes.code || "";
+              }
+          }
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({
+            success: true,
+            blueprintId: "",
+            cardTraderUrl: "",
+            name: cmName,
+            englishName: cmName,
+            expansion: cmExp,
+            rarity: "",
+            code: ygoData.code,
+            game: gameMapped,
+            ygoprodeckUrl: ygoData.ygoprodeckUrl,
+            imageUrl: ygoData.imageUrl,
+            imageUrlLarge: ygoData.imageUrl,
+            imageUrlCropped: ygoData.imageUrl,
+            language: langCode
+          }));
+        }
+        // --- FINE: INTERPRETAZIONE URL CARDMARKET ---
+
         let blueprintId = null;
         const match = urlStr.match(/(?:cards\/|^)(\d+)/);
         if (match) blueprintId = parseInt(match[1], 10);
@@ -1902,4 +1975,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🔐 Sicurezza 2FA: ${authConfig.enabled ? 'Attiva' : 'In attesa di configurazione iniziale'}`);
   console.log('====================================================');
 });
+
+
+
 
