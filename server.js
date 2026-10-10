@@ -1476,17 +1476,31 @@ const server = http.createServer(async (req, res) => {
                 ygoData.imageUrl = ygoRes.imageUrl || "";
                 ygoData.imageUrlLarge = ygoRes.imageUrlLarge || "";
                 ygoData.imageUrlCropped = ygoRes.imageUrlCropped || "";
+                ygoData.code = ygoRes.code || "";
             }
         }
 
+        let ctRarity = rarity;
+        let ctCode = ygoData.code;
+
+        try {
+            const mkt = await fetchCardTrader('/api/v2/marketplace/products?blueprint_id=' + blueprintId);
+            const prods = Array.isArray(mkt) ? mkt : (mkt[blueprintId] || Object.values(mkt).flat());
+            if (prods && prods.length > 0) {
+                const ph = prods[0].properties_hash || {};
+                if (!ctRarity || game !== "yugioh") {
+                    ctRarity = ph.mtg_rarity || ph.pokemon_rarity || ph.rarity || ctRarity;
+                }
+                if (!ctCode || game !== "yugioh") {
+                    ctCode = ph.collector_number || ph.number || ph.code || ctCode;
+                }
+            }
+        } catch(e) {}
+
         let ctImageUrl = "";
         if (bpData.image && bpData.image.url) {
-          // GESTIONE URL IMMAGINE CARDTRADER
-          if (bpData.image.url.startsWith('/')) {
-             ctImageUrl = 'https://www.cardtrader.com' + bpData.image.url;
-          } else {
-             ctImageUrl = bpData.image.url;
-          }
+          if (bpData.image.url.startsWith('/')) ctImageUrl = 'https://www.cardtrader.com' + bpData.image.url;
+          else ctImageUrl = bpData.image.url;
         }
 
         if (!ygoData.imageUrl && ctImageUrl) {
@@ -1506,8 +1520,8 @@ const server = http.createServer(async (req, res) => {
           name: engName,
           englishName: engName,
           expansion: expansionName,
-          rarity: rarity,
-          code: ygoData.code,
+          rarity: ctRarity,
+          code: ctCode,
           game: game,
           ygoprodeckUrl: ygoData.ygoprodeckUrl,
           imageUrl: ygoData.imageUrl,

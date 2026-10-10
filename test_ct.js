@@ -28,7 +28,7 @@ function fetchCardTrader(endpointPath) {
 }
 
 async function test() {
-  console.log(await fetchCardTrader('/api/v2/blueprints/328972'));
+  console.log(await fetchCardTrader('/api/v2/blueprints/108473'));
 }
 test();
 
