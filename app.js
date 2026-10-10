@@ -2931,7 +2931,10 @@
 
       // Populate Form Fields
       if (isWant) {
-        if (data.game) document.getElementById("want-form-game").value = data.game;
+        if (data.game) {
+          document.getElementById("want-form-game").value = data.game;
+          if (typeof updateRarityDatalist === "function") updateRarityDatalist(data.game);
+        }
         document.getElementById("want-form-name").value = data.name || data.englishName;
         document.getElementById("want-form-english-name").value = data.englishName || "";
         document.getElementById("want-form-set").value = data.expansion || "";
@@ -2971,7 +2974,10 @@
         document.getElementById("form-want-level").value = data.level !== null && data.level !== undefined ? data.level : "";
         document.getElementById("form-want-attribute").value = data.attribute || "";
       } else {
-        if (data.game) document.getElementById("form-game").value = data.game;
+        if (data.game) {
+          document.getElementById("form-game").value = data.game;
+          if (typeof updateRarityDatalist === "function") updateRarityDatalist(data.game);
+        }
         document.getElementById("form-name").value = data.name || data.englishName;
         document.getElementById("form-english-name").value = data.englishName || "";
         document.getElementById("form-set").value = data.expansion || "";
@@ -3048,7 +3054,9 @@
         tsEl.innerHTML = `🕒 <strong>Ultima modifica:</strong> ${formatFullDate(card.updatedAt)}`;
       }
 
-      document.getElementById("form-game").value = card.game || "yugioh";
+      const fg = document.getElementById("form-game");
+      fg.value = card.game || "yugioh";
+      if (typeof updateRarityDatalist === "function") updateRarityDatalist(fg.value);
       document.getElementById("form-autofill-url").value = card.cardTraderUrl || (card.blueprintId ? String(card.blueprintId) : "");
       document.getElementById("form-card-id").value = card.id;
       document.getElementById("form-card-blueprint-id").value = card.blueprintId || "";
@@ -3089,7 +3097,9 @@
         tsEl.style.display = "none";
       }
       cardModalTitle.textContent = "Aggiungi Nuova Carta nel Portfolio";
-      document.getElementById("form-game").value = currentBrandFilter !== "all" ? currentBrandFilter : "yugioh";
+      const fg = document.getElementById("form-game");
+      fg.value = currentBrandFilter !== "all" ? currentBrandFilter : "yugioh";
+      if (typeof updateRarityDatalist === "function") updateRarityDatalist(fg.value);
       document.getElementById("form-autofill-url").value = "";
       document.getElementById("form-card-id").value = "";
       document.getElementById("form-card-blueprint-id").value = "";
@@ -3248,7 +3258,9 @@
         tsEl.innerHTML = `🕒 <strong>Ultima modifica:</strong> ${formatFullDate(want.updatedAt)}`;
       }
 
-      document.getElementById("want-form-game").value = want.game || "yugioh";
+      const wfg = document.getElementById("want-form-game");
+      wfg.value = want.game || "yugioh";
+      if (typeof updateRarityDatalist === "function") updateRarityDatalist(wfg.value);
       document.getElementById("want-form-autofill-url").value = want.cardTraderUrl || (want.blueprintId ? String(want.blueprintId) : "");
       document.getElementById("form-want-id").value = want.id;
       document.getElementById("form-want-blueprint-id").value = want.blueprintId || "";
@@ -3287,7 +3299,9 @@
         tsEl.style.display = "none";
       }
       wantModalTitle.textContent = "Aggiungi Carta alla Lista Wants";
-      document.getElementById("want-form-game").value = currentBrandFilter !== "all" ? currentBrandFilter : "yugioh";
+      const wfg = document.getElementById("want-form-game");
+      wfg.value = currentBrandFilter !== "all" ? currentBrandFilter : "yugioh";
+      if (typeof updateRarityDatalist === "function") updateRarityDatalist(wfg.value);
       document.getElementById("want-form-autofill-url").value = "";
       document.getElementById("form-want-id").value = "";
       document.getElementById("form-want-blueprint-id").value = "";
@@ -3936,9 +3950,55 @@
     });
   }
 
+  const RARITY_POOLS = {
+    yugioh: [
+      "Common", "Rare", "Super Rare", "Ultra Rare", "Secret Rare", 
+      "Ultimate Rare", "Ghost Rare", "Prismatic Secret Rare", 
+      "Platinum Secret Rare", "Quarter Century Secret Rare", 
+      "Collector's Rare", "Starlight Rare", "Gold Rare", "Shatterfoil Rare"
+    ],
+    pokemon: [
+      "Common", "Uncommon", "Rare", "Holo Rare", "Reverse Holo", 
+      "Ultra Rare", "Secret Rare", "Rainbow Rare", "Full Art", 
+      "Alternate Art", "Promo", "V", "VMAX", "VSTAR", "ex", "Illustration Rare", "Special Illustration Rare"
+    ],
+    magic: [
+      "Common", "Uncommon", "Rare", "Mythic Rare", "Special", 
+      "Basic Land", "Promo", "Foil"
+    ],
+    riftbound: [
+      "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Promo", "Foil"
+    ]
+  };
+
+  function updateRarityDatalist(game) {
+    const datalist = document.getElementById("rarity-datalist");
+    if (!datalist) return;
+    const pool = RARITY_POOLS[game] || RARITY_POOLS.yugioh;
+    datalist.innerHTML = "";
+    pool.forEach(r => {
+      const opt = document.createElement("option");
+      opt.value = r;
+      datalist.appendChild(opt);
+    });
+  }
+
+  function initDynamicRarities() {
+    const fg = document.getElementById("form-game");
+    if (fg) {
+        fg.addEventListener("change", (e) => updateRarityDatalist(e.target.value));
+        updateRarityDatalist(fg.value); // init
+    }
+    const wfg = document.getElementById("want-form-game");
+    if (wfg) {
+        wfg.addEventListener("change", (e) => updateRarityDatalist(e.target.value));
+    }
+  }
+
   function startApplication() {
     init();
     initBrandFilterEvents();
+    initDynamicRarities();
     init2FAEvents();
     check2FAStatus();
     checkJustTcgQuota();

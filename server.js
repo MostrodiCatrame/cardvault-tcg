@@ -338,12 +338,12 @@ function fetchCardTrader(endpointPath) {
   });
 }
 
-// Get all Yu-Gi-Oh! expansions (cached)
-async function getYuGiOhExpansions() {
+// Get all expansions (cached for all games)
+async function getAllExpansions() {
   if (expansionsCache) return expansionsCache;
   const allExpansions = await fetchCardTrader('/api/v2/expansions');
   if (Array.isArray(allExpansions)) {
-    expansionsCache = allExpansions.filter(e => e.game_id === 4);
+    expansionsCache = allExpansions;
     return expansionsCache;
   }
   return [];
@@ -484,7 +484,9 @@ async function fetchCardTraderPrice(card) {
     } catch(e) {}
   }
 
-  const expansions = await getYuGiOhExpansions();
+  const allExpansions = await getAllExpansions();
+  // Nel fetchCardTraderPrice potremmo avere carte non yugioh, ma manteniamo la ricerca sull'espansione.
+  const expansions = allExpansions;
   const codePrefix = (card.code || '').split('-')[0].toLowerCase().trim();
   const cardCleanName = cleanStr(card.englishName || card.name);
   const cleanExpName = cleanStr(card.expansion);
@@ -1462,11 +1464,9 @@ const server = http.createServer(async (req, res) => {
         else if (bpData.game_id === 22) game = "riftbound";
         else if (bpData.game_id === 1) game = "magic";
 
-        if (game === "yugioh") {
-          const expansions = await getYuGiOhExpansions();
-          const exp = expansions.find(e => e.id === expId);
-          if (exp) expansionName = exp.name;
-        }
+        const expansions = await getAllExpansions();
+        const exp = expansions.find(e => e.id === expId);
+        if (exp) expansionName = exp.name;
 
         let ygoData = { ygoprodeckUrl: "", imageUrl: "", imageUrlLarge: "", imageUrlCropped: "", code: "" };
         if (game === "yugioh") {
@@ -1477,6 +1477,22 @@ const server = http.createServer(async (req, res) => {
                 ygoData.imageUrlLarge = ygoRes.imageUrlLarge || "";
                 ygoData.imageUrlCropped = ygoRes.imageUrlCropped || "";
             }
+        }
+
+        let ctImageUrl = "";
+        if (bpData.image && bpData.image.url) {
+          // GESTIONE URL IMMAGINE CARDTRADER
+          if (bpData.image.url.startsWith('/')) {
+             ctImageUrl = 'https://www.cardtrader.com' + bpData.image.url;
+          } else {
+             ctImageUrl = bpData.image.url;
+          }
+        }
+
+        if (!ygoData.imageUrl && ctImageUrl) {
+            ygoData.imageUrl = ctImageUrl;
+            ygoData.imageUrlLarge = ctImageUrl;
+            ygoData.imageUrlCropped = ctImageUrl;
         }
         
         const baseUrl = 'https://www.cardtrader.com/it/cards/';
